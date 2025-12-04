@@ -1443,27 +1443,27 @@ body {
 }
 
 /* ========================================= */
-/* ===== PEMBETULAN KALENDAR (MOBILE - TEXT WRAP) ===== */
+/* ===== KALENDAR (MOBILE - FIXED) ===== */
 /* ========================================= */
 @media (max-width: 768px) {
     
     /* 1. RESET GRID CONTAINER */
+    /* Penting: Aspect ratio auto supaya tinggi ikut kandungan, bukan dipaksa */
     .calendar-grid {
         display: grid;
-        grid-template-columns: repeat(7, 1fr); /* Kekal 7 kotak sebaris */
+        grid-template-columns: repeat(7, 1fr); 
         gap: 1px;
-        /* "auto" membenarkan ketinggian grid berubah ikut kandungan */
         aspect-ratio: auto !important; 
     }
 
-    /* 2. KOTAK HARI (Biar meninggi secara automatik) */
+    /* 2. KOTAK HARI */
     .calendar-day {
-        min-height: 60px; /* Tinggi asas */
-        height: auto; /* PENTING: Benarkan kotak memanjang ke bawah jika teks banyak */
+        min-height: 60px !important; /* Paksa timpa 100px desktop */
+        height: auto !important;     /* Benarkan memanjang ke bawah */
         padding: 2px;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start; /* Isi kandungan mula dari atas */
+        justify-content: flex-start;
     }
 
     /* 3. NOMBOR HARI */
@@ -1471,7 +1471,7 @@ body {
         font-size: 0.75rem !important;
         margin-bottom: 2px;
         font-weight: 700;
-        text-align: center; /* Kemaskan nombor di tengah atau kiri ikut citarasa */
+        text-align: center;
         width: 100%;
     }
 
@@ -1481,24 +1481,30 @@ body {
         margin-top: 2px;
         border-radius: 3px;
         width: 100%;
+        display: block; /* Guna block, bukan flex */
         
-        /* === KUNCI UTAMA CADANGAN ANDA === */
+        /* INI YANG HILANG SEBELUM NI: */
         white-space: normal !important; /* Benarkan teks turun baris */
-        word-wrap: break-word; /* Pecahkan perkataan panjang jika perlu */
-        line-height: 1.1; /* Jarak antara baris rapat sikit */
-        display: block; /* Pastikan blok supaya boleh wrap */
+        overflow: visible !important;   /* Tunjuk semua teks */
+        text-overflow: clip !important; /* Jangan letak ... */
+        word-wrap: break-word; 
+        line-height: 1.1;
     }
 
-    /* 5. NAMA PROGRAM (Dioptimumkan untuk Wrap) */
+    /* 5. NAMA PROGRAM */
     .act-name {
-        font-size: 0.55rem; /* Font mesti kecil supaya muat */
+        font-size: 0.55rem;
         font-weight: 700;
-        display: block; /* Papar penuh */
-        text-align: left; /* Teks rata kiri lebih mudah baca bila wrap */
+        display: block; 
+        text-align: left;
+        
+        /* INI SANGAT PENTING UNTUK WRAP: */
+        white-space: normal !important; /* Override 'nowrap' dari desktop */
+        overflow: visible !important;
+        text-overflow: clip !important;
     }
 
     /* 6. MASA & VENUE (Pilihan: Papar jika perlu) */
-    /* Saya setkan display block supaya ia turun ke bawah nama program */
     .act-time {
         display: block; 
         font-size: 0.5rem;
@@ -1506,8 +1512,10 @@ body {
         margin-top: 1px;
     }
     
+    /* Venue elok hide di mobile untuk jimat ruang, 
+       tapi kalau nak tunjuk, tukar 'none' jadi 'block' */
     .act-venue {
-        display: none; /* Venue elok hide di mobile untuk jimat ruang */
+        display: none; 
     }
 
     /* 7. Padding Container */
