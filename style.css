@@ -1442,43 +1442,74 @@ body {
     border-color: var(--light-green);
 }
 
-
+/* ========================================= */
+/* ===== PEMBETULAN KALENDAR (MOBILE) ===== */
+/* ========================================= */
 @media (max-width: 768px) {
-    .calendar-day {
-        min-height: 65px; /* Tukar 100px jadi 65px supaya tak panjang sangat */
-    }
-    .day-number {
-        font-size: 0.85rem !important;
-        margin-bottom: 2px;
-    }
-    .activity-item {
-        padding: 2px 4px;
-        margin-top: 1px;
-        gap: 0px; /* Rapatkan jarak antara baris */
+    
+    /* 1. RESET GRID CONTAINER */
+    /* Masalah utama: aspect-ratio 7/6 memaksa bentuk pelik di mobile. Kita matikan. */
+    .calendar-grid {
+        aspect-ratio: auto !important; /* Biar tinggi ikut kandungan, bukan dipaksa */
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px; /* Rapatkan gap */
     }
 
-    .act-name {
-        font-size: 0.6rem; /* Nama program lebih kecil */
+    /* 2. RESET KOTAK HARI */
+    .calendar-day {
+        min-height: 50px; /* Kurangkan tinggi minima (dari 65px ke 50px) */
+        height: auto; /* Benarkan ia memanjang jika ada event */
+        padding: 2px; /* Kurangkan padding dalam */
+        font-size: 0.7rem;
+    }
+
+    /* 3. NOMBOR HARI */
+    .day-number {
+        font-size: 0.75rem !important;
+        margin-bottom: 2px;
+        font-weight: 600;
+    }
+
+    /* 4. ITEM AKTIVITI (KOTAK BERWARNA) */
+    .activity-item {
+        padding: 1px 3px;
+        margin-top: 1px;
+        border-radius: 3px;
         line-height: 1.1;
     }
 
-    .act-time, .act-venue {
-        font-size: 0.5rem; /* Masa & Venue lebih halus */
-        display: none; /* OPTIONAL: Kalau nak jimat ruang, boleh hide masa/venue di mobile. Padam baris ni kalau nak tunjuk. */
+    /* 5. NAMA PROGRAM (Kecilkan font supaya muat) */
+    .act-name {
+        font-size: 0.55rem; /* Font sangat kecil untuk mobile */
+        white-space: nowrap; /* Paksa satu baris */
+        overflow: hidden; /* Potong kalau panjang */
+        text-overflow: ellipsis; /* Tambah ... */
+        display: block;
     }
-    
-    /* Kalau nak tunjuk masa tapi pendekkan: */
+
+    /* 6. MASA & VENUE (Pilihan: Sembunyikan atau kecilkan) */
+    /* Cadangan: Di mobile, sembunyikan masa/venue supaya kalendar tak serabut */
+    .act-time, .act-venue {
+        display: none; 
+    }
+
+    /* Jika anda BERTEGAS nak tunjuk masa juga, guna kod ini (uncomment): */
     /*
     .act-time {
+        display: block;
         font-size: 0.5rem;
+        zoom: 0.9;
     }
     */
-    
-    .calendar-container {
-        padding: 10px; /* Kurangkan padding tepi */
+
+    /* 7. BUTANG TAMBAH (Sorokkan di mobile) */
+    .add-activity-btn {
+        display: none !important;
     }
     
-    .calendar-grid {
-        gap: 2px; /* Rapatkan jarak antara kotak */
+    /* 8. Padding Container Luar */
+    .calendar-container {
+        padding: 10px 5px; /* Kurangkan padding kiri kanan container */
     }
 }
