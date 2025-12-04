@@ -1442,13 +1442,43 @@ body {
     border-color: var(--light-green);
 }
 
-/* KAWALAN UNTUK SKRIN KECIL */
+
 @media (max-width: 768px) {
-    .add-activity-btn {
-        width: 18px;
-        height: 18px;
-        font-size: 0.9rem;
-        top: 1px; 
-        left: 1px;
+    .calendar-day {
+        min-height: 65px; /* Tukar 100px jadi 65px supaya tak panjang sangat */
+    }
+    .day-number {
+        font-size: 0.85rem !important;
+        margin-bottom: 2px;
+    }
+    .activity-item {
+        padding: 2px 4px;
+        margin-top: 1px;
+        gap: 0px; /* Rapatkan jarak antara baris */
+    }
+
+    .act-name {
+        font-size: 0.6rem; /* Nama program lebih kecil */
+        line-height: 1.1;
+    }
+
+    .act-time, .act-venue {
+        font-size: 0.5rem; /* Masa & Venue lebih halus */
+        display: none; /* OPTIONAL: Kalau nak jimat ruang, boleh hide masa/venue di mobile. Padam baris ni kalau nak tunjuk. */
+    }
+    
+    /* Kalau nak tunjuk masa tapi pendekkan: */
+    /*
+    .act-time {
+        font-size: 0.5rem;
+    }
+    */
+    
+    .calendar-container {
+        padding: 10px; /* Kurangkan padding tepi */
+    }
+    
+    .calendar-grid {
+        gap: 2px; /* Rapatkan jarak antara kotak */
     }
 }
