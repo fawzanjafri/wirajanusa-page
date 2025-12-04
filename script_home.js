@@ -1,38 +1,131 @@
+// =======================================================
+// ===== 1. KONFIGURASI & PEMBOLEHUBAH GLOBAL =====
+// =======================================================
 
-let activities = JSON.parse(localStorage.getItem('wirajanusa_activities')) || {};
-let currentActiveDayElement = null; // Elemen hari yang dipilih (untuk modal tambah)
+// URL Google Sheet (Format CSV)
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?output=csv';
 
-// Variabel Global Kalendar
+let activities = {}; 
+let currentActiveDayElement = null; 
 let currentCalendarDate = new Date(); 
+
+// --- Elemen DOM Kalendar ---
 const calendarDays = document.getElementById('calendarDays');
 const currentMonthDisplay = document.getElementById('currentMonth');
 const prevMonthBtn = document.getElementById('prevMonthBtn');
 const nextMonthBtn = document.getElementById('nextMonthBtn');
 
-
-
-// Variabel Modal Aktiviti Baharu
+// --- Elemen DOM Modal Tambah/Edit (PENTING: Ini yang hilang sebelum ni) ---
 const activityModal = document.getElementById('activityModal');
 const closeModalBtn = document.getElementById('closeModal');
 const saveActivityBtn = document.getElementById('saveActivityBtn');
 const modalDateSpan = document.getElementById('modalDateSpan');
+
+// Input Form
 const activityNameInput = document.getElementById('activityName');
 const activityExcoSelect = document.getElementById('activityExco');
 const activityStartTime = document.getElementById('activityStartTime');
 const activityEndTime = document.getElementById('activityEndTime');
 const activityPIC = document.getElementById('activityPIC');
 
-// Variabel Modal Butiran/Edit Aktiviti
+// --- Elemen DOM Modal Butiran (Detail) ---
 const activityDetailModal = document.getElementById('activityDetailModal');
 const closeDetailModalBtn = document.getElementById('closeDetailModal');
 const editActivityBtn = document.getElementById('editActivityBtn');
 const deleteActivityBtn = document.getElementById('deleteActivityBtn');
+
+// Variable sementara untuk edit/delete
 let currentActivityDateKey = null;
 let currentActivityIndex = -1;
 
 
 // =======================================================
-// ===== DARK/LIGHT MODE LOGIC (Kekal) =====
+// ===== 2. FUNGSI FETCH DATA (GOOGLE SHEETS) =====
+// =======================================================
+async function loadActivitiesFromSheet() {
+    console.log("Memulakan proses tarik data dari Google Sheet...");
+
+    try {
+        const response = await fetch(SHEET_URL);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.text();
+        
+        // Reset activities
+        activities = {};
+
+        // Pecahkan baris
+        const rows = data.split('\n');
+
+        rows.forEach((row, index) => {
+            // Abaikan baris kosong
+            if (!row.trim()) return;
+
+            // Regex untuk handle koma dalam quote (contoh: "Program A, Dewan B")
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+            
+            // Fungsi cuci text (buang quote " ")
+            const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
+
+            // Pastikan ada cukup column (A=Bil, B=Date, C=Nama, D=Exco, E=Start, F=End, G=PIC)
+            if (cols.length > 2) {
+                
+                let rawDate = clean(cols[1]); // Column B (Indeks 1)
+                let dateKey = null;
+
+                // --- LOGIK PARSING TARIKH PINTAR ---
+                // 1. Cuba Format YYYY-MM-DD (contoh: 2025-12-03)
+               if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    dateKey = rawDate;
+                }
+                // 2. Cuba Format DD/MM/YYYY atau D/M/YYYY (contoh: 3/12/2025)
+                else if (rawDate.includes('/')) {
+                    // ... (logik split tarikh kekal sama) ...
+                    const parts = rawDate.split('/');
+                    if (parts.length === 3) {
+                        const day = parts[0].padStart(2, '0');
+                        const month = parts[1].padStart(2, '0');
+                        const year = parts[2];
+                        dateKey = `${year}-${month}-${day}`;
+                    }
+                }
+
+                // Jika tarikh valid, simpan data
+                if (dateKey) {
+                    const name = clean(cols[2]);      // Column C
+                    const exco = clean(cols[3]);      // Column D
+                    const startTime = clean(cols[4]); // Column E
+                    const endTime = clean(cols[5]);   // Column F
+                    const pic = clean(cols[6]);       // Column G
+                    const venue = clean(cols[7]);     // Column H
+
+                    if (!activities[dateKey]) {
+                        activities[dateKey] = [];
+                    }
+
+                    activities[dateKey].push({
+                        name: name,
+                        exco: exco,
+                        startTime: startTime,
+                        endTime: endTime,
+                        pic: pic,
+                        venue: venue
+                    });
+                }
+            }
+        });
+
+        console.log("Data berjaya ditarik & diproses:", activities);
+        generateCalendar(currentCalendarDate);
+
+    } catch (error) {
+        console.error("Gagal tarik data Google Sheet:", error);
+    }
+}
+
+
+// =======================================================
+// ===== 3. DARK/LIGHT MODE LOGIC =====
 // =======================================================
 const themeToggle = document.getElementById('themeToggle');
 const body = document.body;
@@ -51,15 +144,13 @@ function toggleTheme() {
 
 if (themeToggle) {
     themeToggle.addEventListener('click', toggleTheme);
-    loadTheme();
 }
 
 
 // =======================================================
-// ===== KALENDAR & FUNGSINYA =====
+// ===== 4. LOGIK PENJANAAN KALENDAR =====
 // =======================================================
 
-// FUNGSI UTAMA: Menjana Kalendar
 function generateCalendar(date) {
     if (!calendarDays) return;
 
@@ -70,20 +161,18 @@ function generateCalendar(date) {
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
-    // Tarikh hari pertama dan hari terakhir dalam bulan
+    // Setup tarikh
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
     
-    // Hari pertama dalam minggu (0=Ahad, 1=Isnin...)
+    // Hari pertama minggu (Isnin sebagai hari pertama)
     let startingDay = firstDayOfMonth.getDay();
-    // Tukar Ahad (0) kepada 7, jika anda mahu Isnin sebagai permulaan minggu
     if (startingDay === 0) startingDay = 7; 
     
-    // Kira tarikh dari bulan sebelumnya untuk isian tempat kosong
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     let daysFromPrevMonth = startingDay - 1; 
 
-    // 1. Tambah hari dari bulan sebelumnya (pre-padding)
+    // 1. Padding Bulan Lepas
     for (let i = daysFromPrevMonth; i > 0; i--) {
         const dayElement = document.createElement('div');
         dayElement.classList.add('calendar-day', 'disabled');
@@ -91,33 +180,33 @@ function generateCalendar(date) {
         calendarDays.appendChild(dayElement);
     }
     
-    // 2. Tambah hari dari bulan semasa
+    // 2. Hari Bulan Semasa
     for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
         const dayElement = document.createElement('div');
         dayElement.classList.add('calendar-day');
+        
+        // Set attribute nombor hari (untuk CSS)
+        dayElement.setAttribute('data-day-number', day);
         dayElement.innerHTML = `<span class="day-number">${day}</span>`;
         
-        // Format tarikh ke 'YYYY-MM-DD'
         const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         dayElement.setAttribute('data-date-key', dateKey);
         
-        const isCurrentMonth = true; // Sentiasa benar untuk gelung ini
-        
-        // Tandakan hari ini
-        if (dateKey === todayKey && isCurrentMonth) {
+        // Tanda Hari Ini
+        if (dateKey === todayKey) {
             dayElement.classList.add('is-today');
         }
 
-        // Tambah butang untuk tambah aktiviti
+        // Butang Tambah (+) - Walaupun hidden via CSS, elemen perlu wujud
         const addActivityBtn = document.createElement('button');
         addActivityBtn.textContent = '+';
         addActivityBtn.classList.add('add-activity-btn');
-        // PENTING: Tambah data-date-key pada butang
         addActivityBtn.setAttribute('data-date-key', dateKey); 
         dayElement.appendChild(addActivityBtn);
         
-        // Paparkan aktiviti sedia ada
+        // Paparkan Aktiviti (Data dari Google Sheet)
         if (activities[dateKey]) {
+            dayElement.classList.add('has-activity'); // Helper class
             activities[dateKey].forEach(activity => {
                 displayActivityOnCalendar(dateKey, activity, dayElement);
             });
@@ -126,9 +215,9 @@ function generateCalendar(date) {
         calendarDays.appendChild(dayElement);
     }
     
-    // 3. Tambah hari dari bulan berikutnya (post-padding)
+    // 3. Padding Bulan Depan
     let totalCells = daysFromPrevMonth + lastDayOfMonth.getDate();
-    let daysToNextMonth = (42 - totalCells) % 7; // 42 adalah bilangan sel untuk 6 baris penuh
+    let daysToNextMonth = (42 - totalCells) % 7; 
 
     for (let i = 1; i <= daysToNextMonth; i++) {
         const dayElement = document.createElement('div');
@@ -137,38 +226,32 @@ function generateCalendar(date) {
         calendarDays.appendChild(dayElement);
     }
 
-    // Kemas kini tajuk bulan
-    currentMonthDisplay.textContent = date.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
+    // Tajuk Bulan
+    if(currentMonthDisplay) {
+        currentMonthDisplay.textContent = date.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
+    }
 }
 
-// FUNGSI: Papar aktiviti pada hari kalendar
-function displayActivityOnCalendar(dateKey, activity, dayElement = null) {
-    if (!dayElement) {
-        dayElement = document.querySelector(`.calendar-day[data-date-key="${dateKey}"]`);
-    }
-
-    if (!dayElement) return;
-
+function displayActivityOnCalendar(dateKey, activity, dayElement) {
     const activityItem = document.createElement('div');
-    activityItem.classList.add('activity-item', `exco-${activity.exco.toLowerCase().replace(/\s/g, '-')}`);
     
-    const activityIndex = activities[dateKey] ? activities[dateKey].findIndex(a => a === activity) : -1;
+    // Kita kekalkan warna ikut Exco supaya nampak cantik
+    const excoClass = activity.exco ? `exco-${activity.exco.toLowerCase().replace(/\s+/g, '-')}` : 'exco-default';
+    activityItem.classList.add('activity-item', excoClass);
     
-    // Tambah maklumat untuk modal butiran
+    const activityIndex = activities[dateKey].findIndex(a => a === activity);
     activityItem.setAttribute('data-activity-index', activityIndex);
-    activityItem.setAttribute('data-date-key', dateKey);
     
+    // === UBAH DISPLAI DI SINI ===
     activityItem.innerHTML = `
-        <span class="exco">${activity.exco}</span>
-        <span class="time">${activity.startTime} - ${activity.endTime}</span>
+        <span class="act-name">${activity.name}</span>
+        <span class="act-time">${activity.startTime} - ${activity.endTime}</span>
+        <span class="act-venue">📍 ${activity.venue || 'TBA'}</span>
     `;
 
-    // Event listener untuk buka modal butiran aktiviti
     activityItem.addEventListener('click', (e) => {
         e.stopPropagation(); 
-        // Dapatkan indeks dari elemen jika aktiviti sudah disimpan dalam data activities[dateKey]
-        const index = parseInt(activityItem.getAttribute('data-activity-index'));
-        openActivityDetailModal(activity, index, dateKey);
+        openActivityDetailModal(activity, activityIndex, dateKey);
     });
     
     dayElement.appendChild(activityItem);
@@ -176,9 +259,8 @@ function displayActivityOnCalendar(dateKey, activity, dayElement = null) {
 
 
 // =======================================================
-// ===== EVENT LISTENER UNTUK NAVIGASI KALENDAR =====
+// ===== 5. EVENT LISTENERS NAVIGASI KALENDAR =====
 // =======================================================
-
 if (prevMonthBtn) {
     prevMonthBtn.addEventListener('click', () => {
         currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
@@ -195,149 +277,28 @@ if (nextMonthBtn) {
 
 
 // =======================================================
-// ===== LOGIK MODAL TAMBAH AKTIVITI =====
-// =======================================================
-
-function openActivityModal(dayElement, activityToEdit = null, indexToEdit = -1) {
-    if (!activityModal) return;
-
-    // 1. Bersihkan active status pada hari sebelum ni (jika ada)
-    if (currentActiveDayElement) {
-        currentActiveDayElement.classList.remove('active');
-    }
-
-    // 2. Set elemen hari yang aktif semasa & tambah class 'active'
-    currentActiveDayElement = dayElement;
-    currentActiveDayElement.classList.add('active'); 
-    
-    // Tarikh untuk dipaparkan dalam modal
-    const dateKey = dayElement.getAttribute('data-date-key');
-    const dateParts = dateKey.split('-');
-    const dateObject = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-    const dateString = dateObject.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
-
-    modalDateSpan.textContent = dateString;
-
-    // Tetapkan borang untuk Tambah atau Edit
-    if (activityToEdit && indexToEdit !== -1) {
-        document.querySelector('#activityModal h2').textContent = `Edit Aktiviti pada ${dateString}`;
-        activityNameInput.value = activityToEdit.name;
-        activityExcoSelect.value = activityToEdit.exco;
-        activityStartTime.value = activityToEdit.startTime;
-        activityEndTime.value = activityToEdit.endTime;
-        activityPIC.value = activityToEdit.pic || '';
-        saveActivityBtn.textContent = 'Kemaskini Aktiviti';
-        saveActivityBtn.setAttribute('data-edit-index', indexToEdit);
-    } else {
-        document.querySelector('#activityModal h2').textContent = `Tambah Aktiviti pada ${dateString}`;
-        activityNameInput.value = '';
-        activityExcoSelect.value = activityExcoSelect.options[0].value; // Set ke lalai
-        activityStartTime.value = '';
-        activityEndTime.value = '';
-        activityPIC.value = '';
-        saveActivityBtn.textContent = 'Simpan Aktiviti';
-        saveActivityBtn.removeAttribute('data-edit-index');
-    }
-
-    activityModal.classList.add('active');
-}
-
-function closeActivityModal() {
-    if (!activityModal) return;
-    activityModal.classList.remove('active');
-
-    // Buang kelas 'active' pada hari yang dipilih
-    if (currentActiveDayElement) {
-        currentActiveDayElement.classList.remove('active');
-    }
-    
-    // Reset pembolehubah global
-    currentActiveDayElement = null; 
-}
-
-
-// EVENT LISTENER: Tutup Modal
-if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', closeActivityModal);
-}
-
-// EVENT LISTENER: Klik luar modal
-if (activityModal) {
-    activityModal.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal-overlay')) {
-            closeActivityModal();
-        }
-    });
-}
-
-// EVENT LISTENER: Simpan Aktiviti
-if (saveActivityBtn) {
-    saveActivityBtn.addEventListener('click', () => {
-        if (!currentActiveDayElement) return;
-
-        const name = activityNameInput.value.trim();
-        const exco = activityExcoSelect.value;
-        const startTime = activityStartTime.value;
-        const endTime = activityEndTime.value;
-        const pic = activityPIC.value.trim();
-        const editIndex = saveActivityBtn.getAttribute('data-edit-index'); // Semak jika mod edit
-
-        if (!name || !exco || !startTime || !endTime) {
-            alert("Sila isi Nama Aktiviti, Exco, dan Waktu Mula/Tamat.");
-            return;
-        }
-
-        const dateKey = currentActiveDayElement.getAttribute('data-date-key'); 
-
-        const newActivity = { name, exco, startTime, endTime, pic };
-
-        // Simpan dalam objek activities
-        if (!activities[dateKey]) {
-            activities[dateKey] = [];
-        }
-
-        if (editIndex !== null) {
-            // Mod Edit: Kemaskini aktiviti sedia ada
-            const index = parseInt(editIndex);
-            activities[dateKey][index] = newActivity;
-            alert(`Aktiviti '${name}' telah dikemaskini.`);
-        } else {
-            // Mod Tambah: Tambah aktiviti baharu
-            activities[dateKey].push(newActivity);
-            localStorage.setItem('wirajanusa_activities', JSON.stringify(activities));
-            alert(`Aktiviti '${name}' oleh ${exco} telah disimpan dan dipaparkan.`);
-        }
-
-        // Janakan semula kalendar untuk kemaskini paparan
-        generateCalendar(currentCalendarDate);
-        closeActivityModal();
-    });
-}
-
-
-// =======================================================
-// ===== LOGIK MODAL BUTIRAN AKTIVITI (DETAIL MODAL) =====
+// ===== 6. LOGIK MODAL (VIEW DETAILS) =====
 // =======================================================
 
 function openActivityDetailModal(activity, index, dateKey) {
     if (!activityDetailModal) return;
 
-    // Set variable global untuk fungsi Edit/Delete
     currentActivityDateKey = dateKey;
     currentActivityIndex = index;
     
-    // Format tarikh
+    // Format Tarikh Cantik
     const dateParts = dateKey.split('-');
-    const dateObject = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-    const dateString = dateObject.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+    const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+    const dateString = dateObj.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    // Paparkan maklumat dalam modal
+    // Masukkan data ke dalam Modal
     document.getElementById('detailActivityName').textContent = activity.name;
     document.getElementById('detailActivityDate').textContent = dateString;
     document.getElementById('detailActivityExco').textContent = activity.exco;
     document.getElementById('detailActivityTime').textContent = `${activity.startTime} - ${activity.endTime}`;
-    document.getElementById('detailActivityPIC').textContent = activity.pic || 'Tiada';
-    document.getElementById('detailActivityTitleInModal').textContent = activity.name; // Letakkan nama aktiviti di tajuk
+    document.getElementById('detailActivityPIC').textContent = activity.pic || '-';
+    document.getElementById('detailActivityVenue').textContent = activity.venue || '-';
+    document.getElementById('detailActivityTitleInModal').textContent = activity.name;
 
     activityDetailModal.classList.add('active');
 }
@@ -345,91 +306,63 @@ function openActivityDetailModal(activity, index, dateKey) {
 function closeActivityDetailModal() {
     if (!activityDetailModal) return;
     activityDetailModal.classList.remove('active');
-    
-    // Reset variable global
-    currentActivityDateKey = null;
-    currentActivityIndex = -1;
 }
 
-// EVENT LISTENER: Tutup Modal Butiran
-if (closeDetailModalBtn) {
-    closeDetailModalBtn.addEventListener('click', closeActivityDetailModal);
-}
+// Event Listeners Modal
+if (closeDetailModalBtn) closeDetailModalBtn.addEventListener('click', closeActivityDetailModal);
 
-// EVENT LISTENER: Klik luar Modal Butiran
 if (activityDetailModal) {
     activityDetailModal.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal-overlay')) {
-            closeActivityDetailModal();
-        }
+        if (e.target.classList.contains('modal-overlay')) closeActivityDetailModal();
     });
 }
 
-// EVENT LISTENER: Butang Padam Aktiviti (Delete)
+// Logik Butang Delete (Hanya padam sementara di skrin, tidak delete di Google Sheet)
 if (deleteActivityBtn) {
     deleteActivityBtn.addEventListener('click', () => {
-        if (!currentActivityDateKey || currentActivityIndex === -1) return;
-
-        const activityName = activities[currentActivityDateKey][currentActivityIndex].name;
-
-        if (confirm(`Anda pasti mahu memadam aktiviti "${activityName}"?`)) {
-            
-            // Padam dari data simpanan
-            activities[currentActivityDateKey].splice(currentActivityIndex, 1);
-            localStorage.setItem('wirajanusa_activities', JSON.stringify(activities));
-            
-            // Janakan semula kalendar untuk kemaskini paparan
-            generateCalendar(currentCalendarDate);
-            
-            closeActivityDetailModal();
-        }
+        alert("Fungsi padam hanya boleh dilakukan oleh Admin melalui Google Sheets.");
     });
 }
 
-// EVENT LISTENER: Butang Edit Aktiviti
-if (editActivityBtn) {
-    editActivityBtn.addEventListener('click', () => {
-        if (!currentActivityDateKey || currentActivityIndex === -1) return;
-        
-        const dayElement = document.querySelector(`.calendar-day[data-date-key="${currentActivityDateKey}"]`);
-        const activityToEdit = activities[currentActivityDateKey][currentActivityIndex];
-        
-        closeActivityDetailModal(); // Tutup modal butiran
-        openActivityModal(dayElement, activityToEdit, currentActivityIndex); // Buka modal tambah/edit
-    });
+
+// =======================================================
+// ===== 7. LOGIK MODAL TAMBAH (LEGACY - HIDDEN) =====
+// =======================================================
+// Fungsi ini dikekalkan supaya kod tidak error jika ada panggilan 'openActivityModal'
+function openActivityModal(dayElement) {
+    if (!activityModal) return;
+    // Logik tambah aktiviti manual dimatikan kerana guna Google Sheet
+    alert("Sila tambah aktiviti melalui Google Sheets.");
 }
 
-// =======================================================
-// ===== EVENT DELEGATION UNTUK BUTANG TAMBAH AKTIVITI (PENTING!) =====
-// =======================================================
+function closeActivityModal() {
+    if (activityModal) activityModal.classList.remove('active');
+}
 
+if (closeModalBtn) closeModalBtn.addEventListener('click', closeActivityModal);
+if (activityModal) activityModal.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-overlay')) closeActivityModal();
+});
+
+// Event Delegation untuk butang '+' (Jika butang ini didedahkan semula)
 if (calendarDays) {
     calendarDays.addEventListener('click', (e) => {
-        // Semak jika elemen yang diklik adalah butang tambah aktiviti
         if (e.target.classList.contains('add-activity-btn')) {
-            e.stopPropagation(); // Hentikan gelembung event
-            
-            const dateKey = e.target.getAttribute('data-date-key');
-            // Dapatkan elemen hari kalendar sebenar menggunakan dateKey
-            const dayElement = document.querySelector(`.calendar-day[data-date-key="${dateKey}"]`);
-            
-            if (dayElement) {
-                // Buka modal
-                openActivityModal(dayElement);
-            }
+            e.stopPropagation();
+            alert("Sila tambah aktiviti melalui Google Sheets.");
         }
     });
 }
 
+
 // =======================================================
-// ===== SIDEBAR LOGIC (Dikekalkan) =====
+// ===== 8. SIDEBAR LOGIC =====
 // =======================================================
 const sidebarPanel = document.getElementById("sidebarPanel");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
 const closeSidebar = document.getElementById("closeSidebar");
 const menuTrigger = document.querySelector(".menu-trigger");
 
-// buka sidebar
 if (menuTrigger) {
     menuTrigger.addEventListener("click", function(e){
         e.preventDefault();
@@ -437,14 +370,12 @@ if (menuTrigger) {
         if (sidebarOverlay) sidebarOverlay.classList.add("active");
     });
 }
-// close button
 if (closeSidebar) {
     closeSidebar.addEventListener("click", function(){
         if (sidebarPanel) sidebarPanel.classList.remove("active");
         if (sidebarOverlay) sidebarOverlay.classList.remove("active");
     });
 }
-// klik luar sidebar
 if (sidebarOverlay) {
     sidebarOverlay.addEventListener("click", function(){
         if (sidebarPanel) sidebarPanel.classList.remove("active");
@@ -452,8 +383,9 @@ if (sidebarOverlay) {
     });
 }
 
+
 // =======================================================
-// ===== VIDEO SLIDESHOW LOGIC (Dikekalkan) =====
+// ===== 9. VIDEO SLIDESHOW LOGIC (HYBRID) =====
 // =======================================================
 const videoSources = [
   "assets/videos/hero1.mp4",
@@ -465,12 +397,11 @@ const prevVideoBtn = document.getElementById("prevVideo");
 const nextVideoBtn = document.getElementById("nextVideo");
 
 let currentVideoIndex = 0;
-let slideInterval; // Variable untuk simpan timer
+let slideInterval; 
 
 if (videos.length > 0) {
     
-    // 1. SETUP AWAL: Play semua video serentak (Muted)
-    // Ini rahsia kenapa transition jadi smooth (video dah ready bergerak)
+    // Play all videos muted initially for smooth transition
     videos.forEach((vid, index) => {
         if (videoSources[index]) {
             vid.src = videoSources[index];
@@ -479,58 +410,47 @@ if (videos.length > 0) {
         }
     });
 
-    // 2. FUNGSI TUKAR VIDEO
     function showVideo(index) {
-        // Buang class active dari semua video
         videos.forEach(v => v.classList.remove("active"));
-        
-        // Tambah class active pada video yang dipilih
         videos[index].classList.add("active");
-        
-        // Safety net: Pastikan video tengah play
         videos[index].play().catch(e => console.log(e));
     }
 
-    // 3. FUNGSI GERAK KE NEXT (Dengan Reset Timer)
     function nextSlide() {
         currentVideoIndex = (currentVideoIndex + 1) % videos.length;
         showVideo(currentVideoIndex);
-        resetTimer(); // Reset timer supaya tak bertukar laju sangat lepas klik
+        resetTimer();
     }
 
-    // 4. FUNGSI GERAK KE PREV (Dengan Reset Timer)
     function prevSlide() {
-        // Formula matematik untuk loop ke belakang (0 -> last index)
         currentVideoIndex = (currentVideoIndex - 1 + videos.length) % videos.length;
         showVideo(currentVideoIndex);
         resetTimer();
     }
 
-    // 5. LOGIK TIMER (AUTO LOOP)
     function startTimer() {
         slideInterval = setInterval(() => {
             currentVideoIndex = (currentVideoIndex + 1) % videos.length;
             showVideo(currentVideoIndex);
-        }, 8000); // 8 saat
+        }, 8000); 
     }
 
     function resetTimer() {
-        clearInterval(slideInterval); // Hentikan timer lama
-        startTimer(); // Mula timer baru
+        clearInterval(slideInterval);
+        startTimer();
     }
 
-    // 6. EVENT LISTENERS UNTUK BUTANG
     if (nextVideoBtn) nextVideoBtn.addEventListener("click", nextSlide);
     if (prevVideoBtn) prevVideoBtn.addEventListener("click", prevSlide);
 
-    // Mula timer bila page load
     startTimer();
 }
 
+
 // =======================================================
-// ===== INIT KALENDAR: Mula kalendar dengan bulan semasa =====
+// ===== 10. INITIALIZATION =====
 // =======================================================
-if (calendarDays && currentMonthDisplay) {
-    // Fungsi init awal
-    generateCalendar(currentCalendarDate); 
-}
+document.addEventListener('DOMContentLoaded', () => {
+    loadTheme();
+    loadActivitiesFromSheet(); // Tarik data sheet
+});
