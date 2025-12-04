@@ -1443,73 +1443,80 @@ body {
 }
 
 /* ========================================= */
-/* ===== PEMBETULAN KALENDAR (MOBILE) ===== */
+/* ===== PEMBETULAN KALENDAR (MOBILE - TEXT WRAP) ===== */
 /* ========================================= */
 @media (max-width: 768px) {
     
     /* 1. RESET GRID CONTAINER */
-    /* Masalah utama: aspect-ratio 7/6 memaksa bentuk pelik di mobile. Kita matikan. */
     .calendar-grid {
-        aspect-ratio: auto !important; /* Biar tinggi ikut kandungan, bukan dipaksa */
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 1px; /* Rapatkan gap */
+        grid-template-columns: repeat(7, 1fr); /* Kekal 7 kotak sebaris */
+        gap: 1px;
+        /* "auto" membenarkan ketinggian grid berubah ikut kandungan */
+        aspect-ratio: auto !important; 
     }
 
-    /* 2. RESET KOTAK HARI */
+    /* 2. KOTAK HARI (Biar meninggi secara automatik) */
     .calendar-day {
-        min-height: 50px; /* Kurangkan tinggi minima (dari 65px ke 50px) */
-        height: auto; /* Benarkan ia memanjang jika ada event */
-        padding: 2px; /* Kurangkan padding dalam */
-        font-size: 0.7rem;
+        min-height: 60px; /* Tinggi asas */
+        height: auto; /* PENTING: Benarkan kotak memanjang ke bawah jika teks banyak */
+        padding: 2px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start; /* Isi kandungan mula dari atas */
     }
 
     /* 3. NOMBOR HARI */
     .day-number {
         font-size: 0.75rem !important;
         margin-bottom: 2px;
-        font-weight: 600;
+        font-weight: 700;
+        text-align: center; /* Kemaskan nombor di tengah atau kiri ikut citarasa */
+        width: 100%;
     }
 
-    /* 4. ITEM AKTIVITI (KOTAK BERWARNA) */
+    /* 4. ITEM AKTIVITI (WRAP TEXT) */
     .activity-item {
-        padding: 1px 3px;
-        margin-top: 1px;
+        padding: 2px 3px;
+        margin-top: 2px;
         border-radius: 3px;
-        line-height: 1.1;
+        width: 100%;
+        
+        /* === KUNCI UTAMA CADANGAN ANDA === */
+        white-space: normal !important; /* Benarkan teks turun baris */
+        word-wrap: break-word; /* Pecahkan perkataan panjang jika perlu */
+        line-height: 1.1; /* Jarak antara baris rapat sikit */
+        display: block; /* Pastikan blok supaya boleh wrap */
     }
 
-    /* 5. NAMA PROGRAM (Kecilkan font supaya muat) */
+    /* 5. NAMA PROGRAM (Dioptimumkan untuk Wrap) */
     .act-name {
-        font-size: 0.55rem; /* Font sangat kecil untuk mobile */
-        white-space: nowrap; /* Paksa satu baris */
-        overflow: hidden; /* Potong kalau panjang */
-        text-overflow: ellipsis; /* Tambah ... */
-        display: block;
+        font-size: 0.55rem; /* Font mesti kecil supaya muat */
+        font-weight: 700;
+        display: block; /* Papar penuh */
+        text-align: left; /* Teks rata kiri lebih mudah baca bila wrap */
     }
 
-    /* 6. MASA & VENUE (Pilihan: Sembunyikan atau kecilkan) */
-    /* Cadangan: Di mobile, sembunyikan masa/venue supaya kalendar tak serabut */
-    .act-time, .act-venue {
-        display: none; 
-    }
-
-    /* Jika anda BERTEGAS nak tunjuk masa juga, guna kod ini (uncomment): */
-    /*
+    /* 6. MASA & VENUE (Pilihan: Papar jika perlu) */
+    /* Saya setkan display block supaya ia turun ke bawah nama program */
     .act-time {
-        display: block;
+        display: block; 
         font-size: 0.5rem;
-        zoom: 0.9;
-    }
-    */
-
-    /* 7. BUTANG TAMBAH (Sorokkan di mobile) */
-    .add-activity-btn {
-        display: none !important;
+        color: #555;
+        margin-top: 1px;
     }
     
-    /* 8. Padding Container Luar */
+    .act-venue {
+        display: none; /* Venue elok hide di mobile untuk jimat ruang */
+    }
+
+    /* 7. Padding Container */
     .calendar-container {
-        padding: 10px 5px; /* Kurangkan padding kiri kanan container */
+        padding: 10px 5px;
+    }
+    
+    /* 8. Sorok butang tambah */
+    .add-activity-btn {
+        display: none !important;
     }
 }
