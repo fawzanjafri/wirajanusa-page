@@ -602,6 +602,25 @@ body {
 }
 
 /* ===== VIDEO BULLETIN GRID STYLES (VERSI KEMASKINI) ===== */
+.main-video-box {
+    /* Hadkan lebar untuk paparan desktop yang lebih baik */
+    max-width: 800px; 
+    margin: 0 auto; /* Tengah-kan video */
+    padding: 25px;
+    
+    /* Guna gaya kad sedia ada supaya konsisten */
+    border: 1px solid var(--light-green); 
+    background: var(--card); 
+    border-radius: 14px;
+    box-shadow: 0 8px 20px var(--shadow-color);
+}
+
+.main-video-box h3 {
+    font-size: 1.6rem; 
+    text-align: center;
+    color: var(--text-color); /* Guna warna teks utama */
+}
+
 .video-grid {
     display: grid;
     gap: 30px; /* Jarak antara kotak video */
@@ -694,8 +713,7 @@ body {
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    /* Nisbah sklaing yang sesuai untuk mobile */
-    aspect-ratio: 7 / 6; /* 6 baris (42 kotak) */ 
+    height: auto;
 }
 
 .cal-day {
@@ -896,14 +914,18 @@ body {
     line-height: 1.2;
     text-align: left;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+
+    height: auto; 
+    min-height: min-content;
 }
 
 .act-name {
     font-size: 0.75rem; 
     font-weight: 800;
-    white-space: nowrap;      /* Elak nama panjang pecah baris */
-    overflow: hidden;         /* Potong kalau panjang sangat */
-    text-overflow: ellipsis;  /* Tambah '...' di hujung */
+    white-space: normal;      /* Allows text to wrap to next line */
+    overflow: visible;        /* Allows text to be seen */
+    text-overflow: clip;      /* Removes the '...' dots */
+    line-height: 1.2;
 }
 
 .act-time {
@@ -1453,7 +1475,9 @@ body {
         display: grid;
         grid-template-columns: repeat(7, 1fr); 
         gap: 1px;
-        aspect-ratio: auto !important; 
+        aspect-ratio: unset !important; /* Completely remove aspect ratio */
+        height: auto !important;        /* Allow container to grow infinitely */
+        grid-auto-rows: minmax(min-content, auto); /* Rows adjust to tallest content */ 
     }
 
     /* 2. KOTAK HARI */
@@ -1483,12 +1507,13 @@ body {
         width: 100%;
         display: block; /* Guna block, bukan flex */
         
-        /* INI YANG HILANG SEBELUM NI: */
-        white-space: normal !important; /* Benarkan teks turun baris */
-        overflow: visible !important;   /* Tunjuk semua teks */
-        text-overflow: clip !important; /* Jangan letak ... */
-        word-wrap: break-word; 
-        line-height: 1.1;
+        /* FIX FOR WRAPPING: */
+        white-space: normal !important;
+        word-wrap: break-word !important; /* Legacy support */
+        word-break: break-word !important; /* Force long words to break */
+        overflow: hidden !important;      /* Prevent spilling into next box */
+        height: auto !important;          /* Allow item to grow tall */
+        line-height: 1.2;
     }
 
     /* 5. NAMA PROGRAM */
