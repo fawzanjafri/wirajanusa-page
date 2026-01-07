@@ -662,12 +662,40 @@ body {
 /* ===== ACTIVITY CALENDAR STYLES ===== */
 
 .calendar-container {
-    max-width: 900px;
-    margin: 30px auto;
     background: var(--card);
+    border-radius: 15px;
     padding: 20px;
-    border-radius: 14px;
-    box-shadow: 0 8px 20px var(--shadow-color);
+    box-shadow: 0 10px 30px var(--shadow-color);
+    width: 100%;
+    height: auto; 
+    
+    /* --- TAMBAH DUA BARIS NI PENTING --- */
+    position: relative; /* Supaya logo boleh duduk dalam kotak ni */
+    z-index: 1;         /* Supaya text calendar duduk atas logo */
+    overflow: hidden;   /* Supaya logo tak terkeluar dari bucu bulat */
+}
+
+.calendar-container::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Centerkan logo */
+    
+    width: 90%;  /* Saiz logo (ubah ikut citarasa, cth: 300px atau 80%) */
+    height: 90%; /* Saiz logo */
+    
+    /* Masukkan path logo anda di sini */
+    background-image: url('assets/logo.png'); 
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    
+    /* --- KAWAL OPACITY DI SINI --- */
+    opacity: 0.1; /* 0.1 = sangat pudar, 0.5 = separuh jelas, 1.0 = jelas */
+    
+    z-index: 5; /* Pastikan dia duduk BELAKANG grid kalendar */
+    pointer-events: none; /* Supaya boleh klik grid walaupun ada logo */
 }
 
 .calendar-header {
@@ -713,7 +741,11 @@ body {
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    height: auto;
+    gap: 1px;
+    background: var(--shadow-color);
+    border: 1px solid var(--shadow-color);
+    /* Pastikan bahagian ini: */
+    min-height: 400px; /* Atau apa-apa nilai yang anda rasa sesuai */
 }
 
 .cal-day {
@@ -961,10 +993,11 @@ body {
 .exco-kebajikan {background-color: #fff9c4;color: #fbc02d;}
 .exco-informasi { background-color: #bbdefb;color: #1565c0;}
 .exco-kecergasan {background-color: #c8e6c9;color: #2e7d32;}
-.exco-kerohanian { background-color: #f7e6ff; color: #8e24aa;}
+.exco-kerohanian { background-color: #a7aaaa; color: #020202;}
 .exco-perpaduan {background-color: #f8bbd0;color: #c2185b;}
 .exco-kesenian { background-color: #ffe0b2;color: #e65100;}
 .exco-logistik {background-color: #e0e0e0;color: #424242;}
+
 
 
 /*.dark-mode .activity-item { }*/
@@ -977,6 +1010,7 @@ body {
 .dark-mode .exco-kerohanian {background-color: #412121;color: #d5cfd0;}
 .dark-mode .exco-kesenian {background-color: #4d2600;color: #ffe0b2;}
 .dark-mode .exco-logistik {background-color: #212121;color: #e0e0e0;}
+.dark-mode .exco-UDPA {background-color: #212121;color: #e0e0e0;}
 
 
 
@@ -1388,12 +1422,18 @@ body {
 
 /* ===== 1. GAYA KALENDAR ===== */
 
+
 .calendar-day {
     
-    position: relative; 
-    border: 2px solid #d1d5db;
-    transition: all 0.2s ease;
-    min-height: 100px;
+    background: var(--card);
+    /* Tukar 'height' kepada 'min-height' */
+    min-height: 120px; 
+    height: auto; /* MESTI 'auto' supaya dia membesar mengikut aktiviti */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    position: relative
 }
 
 .calendar-day:hover {
@@ -1473,7 +1513,7 @@ body {
     /* Penting: Aspect ratio auto supaya tinggi ikut kandungan, bukan dipaksa */
     .calendar-grid {
         display: grid;
-        grid-template-columns: repeat(7, 1fr); 
+        grid-template-columns: repeat(7, minmax(80px, 1fr));
         gap: 1px;
         aspect-ratio: unset !important; /* Completely remove aspect ratio */
         height: auto !important;        /* Allow container to grow infinitely */
@@ -1482,12 +1522,16 @@ body {
 
     /* 2. KOTAK HARI */
     .calendar-day {
-        min-height: 60px !important; /* Paksa timpa 100px desktop */
+        min-height: 80px !important; /* Paksa timpa 100px desktop */
         height: auto !important;     /* Benarkan memanjang ke bawah */
-        padding: 2px;
+        padding: 5px;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
+    }
+
+    .calendar-weekdays span {
+        font-size: 0.75rem;
     }
 
     /* 3. NOMBOR HARI */
@@ -1501,20 +1545,18 @@ body {
 
     /* 4. ITEM AKTIVITI (WRAP TEXT) */
     .activity-item {
-        padding: 2px 3px;
-        margin-top: 2px;
-        border-radius: 3px;
-        width: 100%;
-        display: block; /* Guna block, bukan flex */
-        
-        /* FIX FOR WRAPPING: */
-        white-space: normal !important;
-        word-wrap: break-word !important; /* Legacy support */
-        word-break: break-word !important; /* Force long words to break */
-        overflow: hidden !important;      /* Prevent spilling into next box */
-        height: auto !important;          /* Allow item to grow tall */
+        font-size: 0.7rem;
+        padding: 3px 6px;
+        border-radius: 4px;
+        margin-bottom: 3px;
+        cursor: pointer;
+        /* Benarkan teks turun ke bawah jika panjang */
+        white-space: normal; 
+        word-wrap: break-word;
+        overflow-wrap: break-word;
         line-height: 1.2;
-    }
+        display: block;
+        }
 
     /* 5. NAMA PROGRAM */
     .act-name {
@@ -1545,7 +1587,8 @@ body {
 
     /* 7. Padding Container */
     .calendar-container {
-        padding: 10px 5px;
+        padding: 10px;
+        overflow-x: auto;
     }
     
     /* 8. Sorok butang tambah */
