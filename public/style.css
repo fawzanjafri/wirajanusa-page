@@ -1637,7 +1637,7 @@ body {
 
 .cadet-photo-container {
     width: 100%;
-    height: 260px; /* Nisbah sesuai untuk gambar pasport menegak */
+    aspect-ratio: 3 / 4;
     background-color: #e5e7eb; /* Warna jika gambar loading lambat */
     overflow: hidden;
 }
@@ -1646,7 +1646,7 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover; /* Pastikan gambar tak penyek */
-    object-position: top center; /* Fokus muka/kepala */
+    object-position: center 15%; /* Fokus muka/kepala */
     transition: transform 0.4s ease;
 }
 
