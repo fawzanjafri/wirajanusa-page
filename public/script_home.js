@@ -454,3 +454,99 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTheme();
     loadActivitiesFromSheet(); // Tarik data sheet
 });
+
+// =======================================================
+// ===== 11. FUNGSI FETCH PROFIL KADET (SIDANG) =====
+// =======================================================
+
+// TAMPAL LINK CSV 'INFO KADET' DI SINI
+const CADET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=1610115312&single=true&output=csv';
+
+async function loadCadetProfiles() {
+    const grid = document.getElementById('cadet-grid');
+    if (!grid) return; // Berhenti jika page ni takde ruangan kadet (contoh: di index.html)
+
+    const currentSidang = grid.getAttribute('data-sidang').toUpperCase();
+    console.log("Memuat turun profil untuk sidang:", currentSidang);
+
+    try {
+        const response = await fetch(CADET_SHEET_URL);
+        if (!response.ok) throw new Error("Gagal tarik data profil");
+        
+        const data = await response.text();
+        const rows = data.split('\n');
+        let html = '';
+
+        rows.forEach((row, index) => {
+            if (index === 0 || !row.trim()) return; // Abaikan baris pertama (Header) atau baris kosong
+            
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
+
+            // ANDAIAN SUSUNAN COLUMN: A=Nama, B=Matriks, C=Sidang, D=Exco, E=Gambar
+            // Sila ubah indeks 0, 1, 2, 4 di bawah jika susunan column dalam sheet anda berbeza
+            if (cols.length >= 4) {
+                const nama = clean(cols[0]); 
+                const matriks = clean(cols[1]);
+                const sidang = clean(cols[2]).toUpperCase();
+                const photoUrl = clean(cols[4]); // Column E
+                const exco = clean(cols[3]); // Column D (Jika ada)
+
+                // Filter hanya kadet yang sama sidang dengan page yang sedang dibuka
+                if (sidang === currentSidang) {
+                    
+                    // --- MULA LOGIK GAMBAR PINTAR (UPDATE HOSTING SENDIRI) ---
+                    let finalPhoto = photoUrl;
+
+                    // Fallback: Jika ada kadet yang masih guna link Google Drive lama
+                    if (photoUrl && photoUrl.includes("drive.google.com")) {
+                        let fileId = "";
+                        if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
+                        else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
+                        
+                        if (fileId && fileId.length > 10) {
+                            finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
+                        }
+                    }
+
+                    // Avatar Fallback Dinamik (Huruf Nama - Tema Wiraja Nusa)
+                    let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
+                    
+                    if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") {
+                        finalPhoto = fallbackImg;
+                    }
+
+                    // Masukkan ke dalam HTML
+                    html += `
+                    <div class="cadet-card">
+                        <div class="cadet-photo-container">
+                            <img src="${finalPhoto}" alt="${nama}" class="cadet-photo" onerror="this.src='${fallbackImg}'">
+                        </div>
+                        <div class="cadet-info">
+                            <h3 class="cadet-name">${nama}</h3>
+                            <p class="cadet-matrix">${matriks}</p>
+                            ${exco && exco !== "-" ? `<span class="cadet-exco">${exco}</span>` : ''}
+                        </div>
+                    </div>`;
+                    // --- TAMAT LOGIK GAMBAR ---
+                }
+            }
+        });
+
+        if (html === '') {
+            grid.innerHTML = '<p style="text-align:center; width:100%; color:#888;">Tiada rekod kadet dijumpai untuk sidang ini.</p>';
+        } else {
+            grid.innerHTML = html;
+        }
+
+    } catch (error) {
+        console.error("Ralat memuat turun profil:", error);
+        grid.innerHTML = '<p style="color:red; text-align:center; width:100%;">Gagal memuat turun data dari pelayan.</p>';
+    }
+}
+
+// Tambah panggilan fungsi ini ke dalam Event Listener sedia ada (paling bawah dalam file)
+document.addEventListener('DOMContentLoaded', () => {
+    // ... kod sedia ada ...
+    loadCadetProfiles(); // Panggil fungsi ini bila website dibuka
+});
