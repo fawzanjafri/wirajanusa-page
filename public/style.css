@@ -1505,93 +1505,93 @@ body {
 }
 
 /* ========================================= */
-/* ===== KALENDAR (MOBILE - FIXED) ===== */
+/* ===== KALENDAR (MOBILE - AGENDA VIEW) ===== */
 /* ========================================= */
 @media (max-width: 768px) {
-    
-    /* 1. RESET GRID CONTAINER */
-    /* Penting: Aspect ratio auto supaya tinggi ikut kandungan, bukan dipaksa */
+    /* 1. Reset Container (Buang scroll melintang) */
+    .calendar-container {
+        padding: 5px 0; /* Penuhkan ruang skrin */
+        overflow-x: hidden;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    /* 2. Sorok label hari (Isn, Sel, Rab...) & Kotak Padding Bulan Lepas/Depan */
+    .calendar-weekdays,
+    .calendar-day.disabled {
+        display: none !important;
+    }
+
+    /* 3. Sorok hari yang TIADA aktiviti (Kecuali Hari Ini) untuk jimat ruang */
+    .calendar-day:not(.has-activity):not(.is-today) {
+        display: none !important;
+    }
+
+    /* 4. Tukar Grid jadi 1 Kolum Menegak (Senarai) */
     .calendar-grid {
         display: grid;
-        grid-template-columns: repeat(7, minmax(80px, 1fr));
-        gap: 1px;
-        aspect-ratio: unset !important; /* Completely remove aspect ratio */
-        height: auto !important;        /* Allow container to grow infinitely */
-        grid-auto-rows: minmax(min-content, auto); /* Rows adjust to tallest content */ 
+        grid-template-columns: 1fr;
+        gap: 15px;
+        background: transparent;
+        border: none;
+        min-height: auto;
     }
 
-    /* 2. KOTAK HARI */
+    /* 5. Gaya Kotak Hari (Kad Notifikasi Premium) */
     .calendar-day {
-        min-height: 80px !important; /* Paksa timpa 100px desktop */
-        height: auto !important;     /* Benarkan memanjang ke bawah */
-        padding: 5px;
+        background: var(--card);
+        border: 1px solid var(--shadow-color) !important;
+        border-left: 5px solid var(--accent) !important;
+        border-radius: 12px;
+        min-height: auto !important;
+        height: auto !important;
+        padding: 15px;
+        box-shadow: 0 4px 15px var(--shadow-color);
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
     }
 
-    .calendar-weekdays span {
-        font-size: 0.75rem;
-    }
-
-    /* 3. NOMBOR HARI */
+    /* 6. Nombor Tarikh (Header Hari) */
     .day-number {
-        font-size: 0.75rem !important;
-        margin-bottom: 2px;
-        font-weight: 700;
-        text-align: center;
+        font-size: 1.25rem !important;
+        font-weight: 800;
+        color: var(--accent);
+        text-align: left;
+        margin-bottom: 12px;
+        border-bottom: 1px dashed var(--muted);
+        padding-bottom: 8px;
+        display: block;
         width: 100%;
     }
+    
+    /* Tambah perkataan 'hb' kat belakang nombor secara automatik */
+    .day-number::after {
+        content: " hb"; 
+        font-size: 0.9rem;
+        color: var(--muted);
+        font-weight: 600;
+    }
 
-    /* 4. ITEM AKTIVITI (WRAP TEXT) */
+    /* 7. Gaya Aktiviti (Lebih luas, mudah baca teks panjang) */
     .activity-item {
-        font-size: 0.7rem;
-        padding: 3px 6px;
-        border-radius: 4px;
-        margin-bottom: 3px;
-        cursor: pointer;
-        /* Benarkan teks turun ke bawah jika panjang */
-        white-space: normal; 
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-        line-height: 1.2;
-        display: block;
-        }
+        padding: 12px !important;
+        margin-bottom: 10px;
+        border-radius: 8px;
+    }
 
-    /* 5. NAMA PROGRAM */
     .act-name {
-        font-size: 0.55rem;
-        font-weight: 700;
-        display: block; 
-        text-align: left;
-        
-        /* INI SANGAT PENTING UNTUK WRAP: */
-        white-space: normal !important; /* Override 'nowrap' dari desktop */
-        overflow: visible !important;
-        text-overflow: clip !important;
+        font-size: 0.95rem !important;
+        margin-bottom: 6px;
+        white-space: normal !important;
     }
 
-    /* 6. MASA & VENUE (Pilihan: Papar jika perlu) */
-    .act-time {
-        display: block; 
-        font-size: 0.5rem;
-        color: #555;
-        margin-top: 1px;
+    .act-time, .act-venue {
+        font-size: 0.8rem !important;
+        display: block !important;
+        margin-top: 4px;
     }
     
-    /* Venue elok hide di mobile untuk jimat ruang, 
-       tapi kalau nak tunjuk, tukar 'none' jadi 'block' */
-    .act-venue {
-        display: none; 
-    }
-
-    /* 7. Padding Container */
-    .calendar-container {
-        padding: 10px;
-        overflow-x: auto;
-    }
-    
-    /* 8. Sorok butang tambah */
+    /* 8. Sorok Butang Tambah (Mobile view hanya untuk rujukan) */
     .add-activity-btn {
         display: none !important;
     }
