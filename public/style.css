@@ -1696,3 +1696,178 @@ body {
     color: #e5e7eb;
     border-color: #374151;
 }
+
+/*=======================================================
+   BUTANG CALL-TO-ACTION (CTA) SISTEM PENGURUSAN
+   ======================================================= */
+.system-cta-btn {
+    display: block; /* Paksa butang jadi block supaya boleh set width 100% */
+    width: 100%; /* Panjang penuh ikut saiz container kalendar */
+    background: #111827; /* Hitam Korporat PTD */
+    color: #F5A623 !important; /* Teks Kuning Emas Wiraja Nusa */
+    text-align: center;
+    padding: 16px 20px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 12px;
+    margin-bottom: 25px; /* Jarak nafas antara butang dan kalendar */
+    text-decoration: none;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    border: 2px solid #111827;
+    transition: all 0.3s ease;
+}
+
+/* Efek Hover (Bila jari/mouse sentuh) */
+.system-cta-btn:hover {
+    background: #F5A623; /* Latar belakang jadi Emas */
+    color: #111827 !important; /* Teks jadi Hitam */
+    border-color: #F5A623;
+    transform: translateY(-4px); /* Efek butang terapung naik */
+    box-shadow: 0 10px 25px rgba(245, 166, 35, 0.3);
+}
+
+/* Penyesuaian Dark Mode */
+.dark-mode .system-cta-btn {
+    box-shadow: 0 6px 15px rgba(255, 255, 255, 0.05);
+}
+
+/* =======================================================
+   GHOST BUTTONS (HERO SECTION) - PREMIUM PTD THEME
+   ======================================================= */
+.hero-quick-links {
+    margin-top: 25px; 
+    display: flex; 
+    gap: 15px; 
+    justify-content: flex-start;
+    flex-wrap: wrap; /* Pastikan tak terkeluar skrin bila buka di telefon */
+}
+
+.ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #F5A623; /* Teks Kuning Emas Wiraja Nusa */
+    text-decoration: none;
+    border: 1px solid rgba(245, 166, 35, 0.4); /* Border emas pudar */
+    padding: 10px 20px;
+    border-radius: 50px; /* Bentuk moden (Pill shape) */
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    background: rgba(17, 24, 39, 0.6); /* Latar belakang Hitam Korporat lutsinar */
+    backdrop-filter: blur(5px); /* Efek Kaca (Frosted glass) */
+    transition: all 0.3s ease;
+}
+
+/* Pastikan warna ikon sama dengan teks */
+.ghost-btn svg {
+    stroke: #F5A623;
+    transition: all 0.3s ease;
+}
+
+/* Efek Hover (Bila disentuh) */
+.ghost-btn:hover {
+    background: #F5A623; /* Latar bertukar Emas */
+    color: #111827 !important; /* Teks bertukar Hitam */
+    border-color: #F5A623;
+    box-shadow: 0 4px 15px rgba(245, 166, 35, 0.3); /* Glow Emas */
+    transform: translateY(-3px); /* Butang naik sikit */
+}
+
+/* Tukar warna ikon kepada Hitam bila di-hover */
+.ghost-btn:hover svg {
+    stroke: #111827;
+}
+
+/* =======================================================
+   SIDEBAR MENU ITEM (PREMIUM WIRAJANUSA THEME)
+   ======================================================= */
+.sidebar-menu {
+    list-style: none; /* Buang titik bullet */
+    padding: 0;
+    margin: 30px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Jarak antara menu */
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #f3f4f6; /* Warna teks cerah/putih */
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 600; /* Font lebih tebal */
+    letter-spacing: 0.5px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+/* Pastikan Ikon SVG menggunakan warna Emas secara lalai */
+.sidebar-link svg {
+    stroke: #F5A623; 
+    transition: all 0.3s ease;
+}
+
+/* Efek Hover: Bila mouse/jari sentuh menu */
+.sidebar-link:hover {
+    background: rgba(245, 166, 35, 0.1); /* Latar belakang emas sangat pudar */
+    color: #F5A623; /* Teks bertukar Emas */
+    border: 1px solid rgba(245, 166, 35, 0.3); /* Border emas lutsinar muncul */
+    transform: translateX(8px); /* Efek butang meluncur ke kanan sikit */
+}
+/* =======================================================
+   SIDEBAR SUB-MENU (DROPDOWN)
+   ======================================================= */
+/* Gaya kotak sub-menu (tersembunyi secara default) */
+.submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2); /* Latar belakang lebih gelap sedikit */
+    border-radius: 8px;
+    transition: max-height 0.3s ease-out, margin 0.3s ease-out;
+}
+
+/* Apabila sub-menu dibuka */
+.submenu.open {
+    max-height: 300px; /* Cukup tinggi untuk muatkan pilihan */
+    margin-top: 5px;
+    transition: max-height 0.3s ease-in, margin 0.3s ease-in;
+}
+
+/* Gaya teks pilihan di dalam sub-menu */
+.submenu-link {
+    display: block;
+    color: #9ca3af; /* Warna kelabu lembut */
+    text-decoration: none;
+    padding: 10px 15px 10px 48px; /* Teks dianjak ke dalam sikit */
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-left: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+/* Bila mouse hover pada pilihan sub-menu */
+.submenu-link:hover {
+    color: #F5A623;
+    background: rgba(245, 166, 35, 0.05);
+    border-left: 2px solid #F5A623;
+    padding-left: 52px; /* Efek meluncur sikit ke kanan */
+}
+
+/* Animasi pusingan anak panah (Chevron) */
+.chevron-icon {
+    transition: transform 0.3s ease;
+}
+.has-submenu.open .chevron-icon {
+    transform: rotate(180deg); /* Anak panah pusing ke atas bila dibuka */
+}

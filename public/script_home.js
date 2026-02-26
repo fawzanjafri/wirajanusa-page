@@ -71,46 +71,84 @@ async function loadActivitiesFromSheet() {
             if (cols.length > 2) {
                 
                 let rawDate = clean(cols[1]); // Column B (Indeks 1)
-                let dateKey = null;
+                
+               const name = clean(cols[2]);      // Column C
+                const level = clean(cols[3]);     // Column D (Peringkat Baru)
+                const exco = clean(cols[4]);      // Column E (Asalnya D)
+                const startTime = clean(cols[5]); // Column F (Asalnya E)
+                const endTime = clean(cols[6]);   // Column G (Asalnya F)
+                const pic = clean(cols[7]);       // Column H (Asalnya G)
+                const venue = clean(cols[8]);     // Column I (Asalnya H)
 
-                // --- LOGIK PARSING TARIKH PINTAR ---
-                // 1. Cuba Format YYYY-MM-DD (contoh: 2025-12-03)
-               if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    dateKey = rawDate;
-                }
-                // 2. Cuba Format DD/MM/YYYY atau D/M/YYYY (contoh: 3/12/2025)
-                else if (rawDate.includes('/')) {
-                    // ... (logik split tarikh kekal sama) ...
-                    const parts = rawDate.split('/');
-                    if (parts.length === 3) {
-                        const day = parts[0].padStart(2, '0');
-                        const month = parts[1].padStart(2, '0');
-                        const year = parts[2];
-                        dateKey = `${year}-${month}-${day}`;
+                // Simpan data aktiviti ke dalam objek (Tambah level)
+                const activityData = {
+                    name: name,
+                    level: level, 
+                    exco: exco,
+                    startTime: startTime,
+                    endTime: endTime,
+                    pic: pic,
+                    venue: venue
+                };
+
+                // --- FUNGSI HELPER: TUKAR TEKS KE OBJEK TARIKH (VERSI STABIL) ---
+                function parseToDate(dateStr) {
+                    if (!dateStr) return null;
+                    dateStr = dateStr.trim();
+                    // Format sistem: YYYY-MM-DD
+                    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        const parts = dateStr.split('-');
+                        // Guna parameter untuk elak isu zon masa (Timezone Shift)
+                        return new Date(parts[0], parts[1] - 1, parts[2]);
+                    } 
+                    // Format biasa: DD/MM/YYYY
+                    else if (dateStr.includes('/')) {
+                        const parts = dateStr.split('/');
+                        if (parts.length === 3) {
+                            return new Date(parts[2], parts[1] - 1, parts[0]);
+                        }
                     }
+                    return null;
                 }
 
-                // Jika tarikh valid, simpan data
-                if (dateKey) {
-                    const name = clean(cols[2]);      // Column C
-                    const exco = clean(cols[3]);      // Column D
-                    const startTime = clean(cols[4]); // Column E
-                    const endTime = clean(cols[5]);   // Column F
-                    const pic = clean(cols[6]);       // Column G
-                    const venue = clean(cols[7]);     // Column H
+                // --- LOGIK PARSING TARIKH PINTAR (REGEX) ---
+                // Skrip akan ekstrak SEMUA tarikh lengkap yang dia jumpa dalam kotak
+                const dateMatches = rawDate.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/g);
 
-                    if (!activities[dateKey]) {
-                        activities[dateKey] = [];
+                if (dateMatches && dateMatches.length >= 2) {
+                    // KES 1: Tarikh Panjang (Ada 2 tarikh lengkap dikesan)
+                    const startDate = parseToDate(dateMatches[0]);
+                    const endDate = parseToDate(dateMatches[1]);
+
+                    if (startDate && endDate && startDate <= endDate) {
+                        let currentDate = new Date(startDate);
+                        while (currentDate <= endDate) {
+                            const y = currentDate.getFullYear();
+                            const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+                            const d = String(currentDate.getDate()).padStart(2, '0');
+                            const dateKey = `${y}-${m}-${d}`;
+
+                            if (!activities[dateKey]) activities[dateKey] = [];
+                            activities[dateKey].push(activityData);
+
+                            // Gerak ke hari seterusnya
+                            currentDate.setDate(currentDate.getDate() + 1);
+                        }
                     }
+                } else if (dateMatches && dateMatches.length === 1) {
+                    // KES 2: Tarikh Biasa (Hanya 1 tarikh lengkap dikesan)
+                    const singleDate = parseToDate(dateMatches[0]);
+                    if (singleDate) {
+                        const y = singleDate.getFullYear();
+                        const m = String(singleDate.getMonth() + 1).padStart(2, '0');
+                        const d = String(singleDate.getDate()).padStart(2, '0');
+                        const dateKey = `${y}-${m}-${d}`;
 
-                    activities[dateKey].push({
-                        name: name,
-                        exco: exco,
-                        startTime: startTime,
-                        endTime: endTime,
-                        pic: pic,
-                        venue: venue
-                    });
+                        if (!activities[dateKey]) activities[dateKey] = [];
+                        activities[dateKey].push(activityData);
+                    }
+                } else {
+                    console.warn("Format tarikh tidak difahami untuk aktiviti:", name, rawDate);
                 }
             }
         });
@@ -294,6 +332,7 @@ function openActivityDetailModal(activity, index, dateKey) {
     // Masukkan data ke dalam Modal
     document.getElementById('detailActivityName').textContent = activity.name;
     document.getElementById('detailActivityDate').textContent = dateString;
+    document.getElementById('detailActivityLevel').textContent = activity.level || '-';
     document.getElementById('detailActivityExco').textContent = activity.exco;
     document.getElementById('detailActivityTime').textContent = `${activity.startTime} - ${activity.endTime}`;
     document.getElementById('detailActivityPIC').textContent = activity.pic || '-';
@@ -382,6 +421,33 @@ if (sidebarOverlay) {
         if (sidebarOverlay) sidebarOverlay.classList.remove("active");
     });
 }
+
+// =======================================================
+// ===== LOGIK DROPDOWN SIDEBAR (ACCORDION) =====
+// =======================================================
+const submenuToggles = document.querySelectorAll('.submenu-toggle');
+
+submenuToggles.forEach(toggle => {
+    toggle.addEventListener('click', function(e) {
+        e.preventDefault(); // Halang link dari refresh page
+        
+        const parentLi = this.parentElement;
+        const submenu = parentLi.querySelector('.submenu');
+        
+        // (Pilihan) Kalau kau nak menu lain automatik tertutup bila buka menu baru:
+        document.querySelectorAll('.has-submenu').forEach(item => {
+            if(item !== parentLi) {
+                item.classList.remove('open');
+                const otherSubmenu = item.querySelector('.submenu');
+                if(otherSubmenu) otherSubmenu.classList.remove('open');
+            }
+        });
+
+        // Toggle (Buka/Tutup) menu yang ditekan
+        parentLi.classList.toggle('open');
+        submenu.classList.toggle('open');
+    });
+});
 
 
 // =======================================================
