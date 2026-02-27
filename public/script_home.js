@@ -519,6 +519,8 @@ if (videos.length > 0) {
 document.addEventListener('DOMContentLoaded', () => {
     loadTheme();
     loadActivitiesFromSheet(); // Tarik data sheet
+    loadCadetProfiles();
+    loadDirektoriPenuh();
 });
 
 // =======================================================
@@ -529,10 +531,11 @@ document.addEventListener('DOMContentLoaded', () => {
 const CADET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=1610115312&single=true&output=csv';
 
 async function loadCadetProfiles() {
-    const grid = document.getElementById('cadet-grid');
-    if (!grid) return; // Berhenti jika page ni takde ruangan kadet (contoh: di index.html)
+    // Kita target ID container asal
+    const gridContainer = document.getElementById('cadet-grid');
+    if (!gridContainer) return; 
 
-    const currentSidang = grid.getAttribute('data-sidang').toUpperCase();
+    const currentSidang = gridContainer.getAttribute('data-sidang').toUpperCase();
     console.log("Memuat turun profil untuk sidang:", currentSidang);
 
     try {
@@ -541,30 +544,29 @@ async function loadCadetProfiles() {
         
         const data = await response.text();
         const rows = data.split('\n');
-        let html = '';
+
+        // Sediakan dua "bakul" untuk asingkan kadet
+        let jawatankuasa = [];
+        let kadetBiasa = [];
 
         rows.forEach((row, index) => {
-            if (index === 0 || !row.trim()) return; // Abaikan baris pertama (Header) atau baris kosong
+            if (index === 0 || !row.trim()) return; 
             
             const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
             const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
 
-            // ANDAIAN SUSUNAN COLUMN: A=Nama, B=Matriks, C=Sidang, D=Exco, E=Gambar
-            // Sila ubah indeks 0, 1, 2, 4 di bawah jika susunan column dalam sheet anda berbeza
-            if (cols.length >= 4) {
+            // SUSUNAN BARU (A=Nama, B=Matriks, C=Sidang, D=Jawatan, E=Jantina, F=Gambar)
+            if (cols.length >= 6) {
                 const nama = clean(cols[0]); 
                 const matriks = clean(cols[1]);
                 const sidang = clean(cols[2]).toUpperCase();
-                const photoUrl = clean(cols[4]); // Column E
-                const exco = clean(cols[3]); // Column D (Jika ada)
+                const jawatan = clean(cols[3]).toUpperCase(); // Kolum D
+                const jantina = clean(cols[4]).toUpperCase(); // Kolum E
+                const photoUrl = clean(cols[5]);              // Kolum F
 
-                // Filter hanya kadet yang sama sidang dengan page yang sedang dibuka
                 if (sidang === currentSidang) {
                     
-                    // --- MULA LOGIK GAMBAR PINTAR (UPDATE HOSTING SENDIRI) ---
                     let finalPhoto = photoUrl;
-
-                    // Fallback: Jika ada kadet yang masih guna link Google Drive lama
                     if (photoUrl && photoUrl.includes("drive.google.com")) {
                         let fileId = "";
                         if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
@@ -575,44 +577,243 @@ async function loadCadetProfiles() {
                         }
                     }
 
-                    // Avatar Fallback Dinamik (Huruf Nama - Tema Wiraja Nusa)
                     let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
-                    
                     if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") {
                         finalPhoto = fallbackImg;
                     }
 
-                    // Masukkan ke dalam HTML
-                    html += `
-                    <div class="cadet-card">
-                        <div class="cadet-photo-container">
-                            <img src="${finalPhoto}" alt="${nama}" class="cadet-photo" onerror="this.src='${fallbackImg}'">
-                        </div>
-                        <div class="cadet-info">
-                            <h3 class="cadet-name">${nama}</h3>
-                            <p class="cadet-matrix">${matriks}</p>
-                            ${exco && exco !== "-" ? `<span class="cadet-exco">${exco}</span>` : ''}
-                        </div>
-                    </div>`;
-                    // --- TAMAT LOGIK GAMBAR ---
+                    // Objek data seorang kadet
+                    const cadetObj = { nama, matriks, jawatan, jantina, finalPhoto, fallbackImg };
+
+                    // Semak jika kadet ini adalah Jawatankuasa
+                    let rank = 99; // Default (Kadet Biasa)
+                    if (jawatan === "KETUA SIDANG") rank = 1;
+                    else if (jawatan.includes("TIMBALAN")) rank = 2; // Boleh tangkap 'Timbalan Ketua' dsb.
+                    else if (jawatan === "BENDAHARI") rank = 3;
+
+                    if (rank < 99) {
+                        cadetObj.rank = rank;
+                        jawatankuasa.push(cadetObj);
+                    } else {
+                        kadetBiasa.push(cadetObj);
+                    }
                 }
             }
         });
 
-        if (html === '') {
-            grid.innerHTML = '<p style="text-align:center; width:100%; color:#888;">Tiada rekod kadet dijumpai untuk sidang ini.</p>';
-        } else {
-            grid.innerHTML = html;
+        // --- SUSUNAN KHAS JAWATANKUASA (TIMBALAN KIRI, KETUA TENGAH, BENDAHARI KANAN) ---
+        let ketuas = jawatankuasa.filter(k => k.rank === 1);
+        let timbalans = jawatankuasa.filter(k => k.rank === 2);
+        let bendaharis = jawatankuasa.filter(k => k.rank === 3);
+        
+        // Gabungkan semula mengikut urutan yang kau nak
+        jawatankuasa = [...timbalans, ...ketuas, ...bendaharis];
+
+        // Fungsi Helper untuk buat kod HTML kad kadet
+        const generateCardHTML = (c) => `
+            <div class="cadet-card">
+                <div class="cadet-photo-container">
+                    <img src="${c.finalPhoto}" alt="${c.nama}" class="cadet-photo" onerror="this.src='${c.fallbackImg}'">
+                </div>
+                <div class="cadet-info">
+                    <h3 class="cadet-name">${c.nama}</h3>
+                    <p class="cadet-matrix">${c.matriks}</p>
+                    <div class="cadet-badges">
+                        ${c.jawatan && c.jawatan !== "-" ? `<span class="cadet-badge jawatan-badge">${c.jawatan}</span>` : ''}
+                        ${c.jantina && c.jantina !== "-" ? `<span class="cadet-badge jantina-badge">${c.jantina}</span>` : ''}
+                    </div>
+                </div>
+            </div>`;
+
+        let finalHTML = '';
+
+        // TAMPAL SEKSYEN JAWATANKUASA (Jika Ada)
+        if (jawatankuasa.length > 0) {
+            finalHTML += `
+                <div class="jawatankuasa-section">
+                    <h3 class="section-sub-title">Jawatankuasa Sidang</h3>
+                    <div class="cadet-grid-flex">
+                        ${jawatankuasa.map(generateCardHTML).join('')}
+                    </div>
+                </div>
+                <hr class="divider">
+            `;
         }
+
+        // TAMPAL SEKSYEN KADET BIASA
+        if (kadetBiasa.length > 0) {
+            finalHTML += `
+                <div class="biasa-section">
+                    <div class="cadet-grid-flex">
+                        ${kadetBiasa.map(generateCardHTML).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (jawatankuasa.length === 0) {
+            finalHTML = '<p style="text-align:center; width:100%; color:#888;">Tiada rekod kadet dijumpai untuk sidang ini.</p>';
+        }
+
+        gridContainer.innerHTML = finalHTML;
 
     } catch (error) {
         console.error("Ralat memuat turun profil:", error);
-        grid.innerHTML = '<p style="color:red; text-align:center; width:100%;">Gagal memuat turun data dari pelayan.</p>';
+        gridContainer.innerHTML = '<p style="color:red; text-align:center; width:100%;">Gagal memuat turun data dari pelayan.</p>';
     }
 }
 
-// Tambah panggilan fungsi ini ke dalam Event Listener sedia ada (paling bawah dalam file)
-document.addEventListener('DOMContentLoaded', () => {
-    // ... kod sedia ada ...
-    loadCadetProfiles(); // Panggil fungsi ini bila website dibuka
-});
+// =======================================================
+// ===== 12. FUNGSI FETCH DIREKTORI PENUH (SEMUA SIDANG A-Z) =====
+// =======================================================
+async function loadDirektoriPenuh() {
+    const direktoriContainer = document.getElementById('direktori-grid-penuh');
+    if (!direktoriContainer) return; 
+
+    try {
+        const response = await fetch(CADET_SHEET_URL);
+        if (!response.ok) throw new Error("Gagal tarik data");
+        
+        const data = await response.text();
+        const rows = data.split('\n');
+
+        // Kita cuma perlukan satu bekas besar untuk semua kadet
+        let semuaKadet = [];
+
+        rows.forEach((row, index) => {
+            if (index === 0 || !row.trim()) return; 
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
+
+            if (cols.length >= 6) {
+                const nama = clean(cols[0]); 
+                const matriks = clean(cols[1]);
+                const sidang = clean(cols[2]).toUpperCase();
+                // Jawatan kita abaikan untuk view ni
+                const jantina = clean(cols[4]).toUpperCase(); 
+                const photoUrl = clean(cols[5]);              
+
+                let finalPhoto = photoUrl;
+                if (photoUrl && photoUrl.includes("drive.google.com")) {
+                    let fileId = "";
+                    if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
+                    else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
+                    if (fileId && fileId.length > 10) finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
+                }
+
+                let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
+                if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") finalPhoto = fallbackImg;
+
+                // Masukkan ke dalam senarai induk
+                semuaKadet.push({ nama, matriks, sidang, jantina, finalPhoto, fallbackImg });
+            }
+        });
+
+        // --- 1. SUSUN MENGIKUT ABJAD A-Z (NAMA) ---
+        semuaKadet.sort((a, b) => a.nama.localeCompare(b.nama));
+
+        // --- 2. FUNGSI PEWARNA LENCANA SIDANG ---
+        const getSidangColor = (s) => {
+            if(s === 'MEGANTARA') return 'background-color:#F5A623; color:#111; border-color:#F5A623;';
+            if(s === 'ADIKARA') return 'background-color:#004d40; color:#fff; border-color:#004d40;';
+            if(s === 'DIRGANTARA') return 'background-color:#01579b; color:#fff; border-color:#01579b;';
+            if(s === 'NAGASASRA') return 'background-color:#b71c1c; color:#fff; border-color:#b71c1c;';
+            return 'background-color:#e5e7eb; color:#333;';
+        };
+
+        // --- 3. BINA KAD (Sertakan ID unik untuk fungsi carian) ---
+        const generateCardHTML = (c) => `
+            <div class="cadet-card" id="kadet-${c.matriks.replace(/\s+/g, '')}">
+                <div class="cadet-photo-container">
+                    <img src="${c.finalPhoto}" alt="${c.nama}" class="cadet-photo" onerror="this.src='${c.fallbackImg}'">
+                </div>
+                <div class="cadet-info">
+                    <h3 class="cadet-name">${c.nama}</h3>
+                    <p class="cadet-matrix">${c.matriks}</p>
+                    <div class="cadet-badges">
+                        <span class="cadet-badge" style="${getSidangColor(c.sidang)}">${c.sidang}</span>
+                        ${c.jantina && c.jantina !== "-" ? `<span class="cadet-badge jantina-badge">${c.jantina}</span>` : ''}
+                    </div>
+                </div>
+            </div>`;
+
+        // Masukkan semua kad dalam satu susunan flex yang besar
+        let finalHTML = `
+            <div class="sidang-group" style="background:transparent; box-shadow:none; padding:0;">
+                <div class="cadet-grid-flex">
+                    ${semuaKadet.map(generateCardHTML).join('')}
+                </div>
+            </div>`;
+
+        direktoriContainer.innerHTML = finalHTML;
+
+        // --- 4. HIDUPKAN ENJIN CARIAN PINTAR ---
+        setupSearchFunction(semuaKadet);
+
+    } catch (error) {
+        console.error("Ralat Direktori:", error);
+        direktoriContainer.innerHTML = '<p style="color:red; text-align:center;">Gagal memuat turun data.</p>';
+    }
+}
+
+// =======================================================
+// ===== ENJIN CARIAN KADET (MELUNCUR & HIGHLIGHT) =====
+// =======================================================
+function setupSearchFunction(semuaKadet) {
+    const searchInput = document.getElementById('searchKadetInput');
+    const searchBtn = document.getElementById('searchKadetBtn');
+    
+    if (!searchInput || !searchBtn) return;
+
+    const performSearch = () => {
+        const query = searchInput.value.toLowerCase().trim();
+        if (!query) return;
+
+        // Cari kadet yang match pada sebahagian nama atau matriks
+        const foundKadet = semuaKadet.find(k => 
+            k.nama.toLowerCase().includes(query) || 
+            k.matriks.toLowerCase().includes(query)
+        );
+
+        if (foundKadet) {
+            // Cari elemen kad di skrin
+            const targetId = `kadet-${foundKadet.matriks.replace(/\s+/g, '')}`;
+            const targetElement = document.getElementById(targetId);
+            
+            if (targetElement) {
+                // Bersihkan sebarang highlight lama
+                document.querySelectorAll('.cadet-card').forEach(el => {
+                    el.style.boxShadow = '';
+                    el.style.transform = '';
+                    el.style.border = '1px solid #eee';
+                });
+
+                // Meluncur terus ke muka kadet
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Beri efek 'menyala' supaya mata user terus nampak
+                setTimeout(() => {
+                    targetElement.style.transition = 'all 0.5s ease';
+                    targetElement.style.boxShadow = '0 0 25px rgba(245, 166, 35, 0.8)'; // Glow Emas
+                    targetElement.style.border = '2px solid #F5A623';
+                    targetElement.style.transform = 'scale(1.05)';
+                    
+                    // Padam efek lepas 3 saat
+                    setTimeout(() => {
+                        targetElement.style.boxShadow = '';
+                        targetElement.style.border = '1px solid #eee';
+                        targetElement.style.transform = '';
+                    }, 3000);
+                }, 400); // Tunggu sikit bagi dia siap scroll
+            }
+        } else {
+            alert('Tiada kadet dijumpai. Sila pastikan ejaan nama atau nombor matriks betul.');
+        }
+    };
+
+    // Apabila butang ditekan
+    searchBtn.addEventListener('click', performSearch);
+    
+    // Apabila user tekan 'Enter' di keyboard
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch();
+    });
+}

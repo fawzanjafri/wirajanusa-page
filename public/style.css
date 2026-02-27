@@ -1598,103 +1598,168 @@ body {
 }
 
 /* =======================================================
-   UI/UX PROFIL KADET SIDANG
+   UI/UX PROFIL KADET SIDANG (VERSI KECIL & FLEX CENTER)
    ======================================================= */
 .cadet-section {
-    padding: 40px 8%;
+    padding: 20px 5%;
     background-color: var(--bg);
     border-top: 1px solid var(--shadow-color);
 }
 
-.cadet-grid {
-    display: grid;
-    /* Automatik susun kad: 1 per baris di telefon, 4+ per baris di Desktop */
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 25px;
-    justify-content: center;
+/* Matikan grid asal container utama */
+.cadet-grid { display: block; } 
+
+/* Penggunaan Flexbox supaya baris akhir sentiasa ke tengah */
+.cadet-grid-flex {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center; /* Kunci rahsia center last row! */
+    gap: 15px; /* Jarak antara kad */
+    margin-top: 20px;
 }
 
 .cadet-card {
     background: var(--card);
-    border-radius: 12px;
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 6px 15px var(--shadow-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     display: flex;
     flex-direction: column;
     align-items: center;
     border: 1px solid #eee;
+    
+    /* TETAPAN SAIZ UNTUK DESKTOP (6-7 kadet sebaris) */
+    width: 150px; 
+    flex: 0 0 auto;
 }
 
-.dark-mode .cadet-card {
-    border-color: #333;
-}
+.dark-mode .cadet-card { border-color: #333; }
 
 .cadet-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 25px rgba(0,0,0,0.15);
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
 
 .cadet-photo-container {
     width: 100%;
     aspect-ratio: 3 / 4;
-    background-color: #e5e7eb; /* Warna jika gambar loading lambat */
+    background-color: #e5e7eb;
     overflow: hidden;
 }
 
 .cadet-photo {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Pastikan gambar tak penyek */
-    object-position: center 15%; /* Fokus muka/kepala */
+    object-fit: cover;
+    object-position: center 15%;
     transition: transform 0.4s ease;
 }
 
-.cadet-card:hover .cadet-photo {
-    transform: scale(1.05); /* Gambar membesar sikit bila disentuh */
-}
+.cadet-card:hover .cadet-photo { transform: scale(1.05); }
 
 .cadet-info {
-    padding: 20px 15px;
+    padding: 12px 10px;
     text-align: center;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex-grow: 1; /* Tolak elemen lain ke bawah */
+    flex-grow: 1;
 }
 
 .cadet-name {
     margin: 0 0 5px 0;
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 0.8rem; /* Saiz font dikecilkan */
+    font-weight: 800;
     color: var(--text-color);
-    line-height: 1.3;
+    line-height: 1.2;
 }
 
 .cadet-matrix {
-    margin: 0 0 10px 0;
-    font-size: 0.85rem;
+    margin: 0 0 8px 0;
+    font-size: 0.7rem;
     color: var(--muted);
     font-weight: 500;
 }
 
-.cadet-exco {
-    display: inline-block;
-    background-color: #f3f4f6;
-    color: var(--metallic-blue);
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    border: 1px solid #d1d5db;
-    margin-top: auto; /* Duduk kat bawah sekali dalam kotak info */
+/* Ruangan khas menyusun lencana (Jawatan atas, Jantina bawah) */
+.cadet-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: auto; 
+    width: 100%;
+    align-items: center;
 }
 
-.dark-mode .cadet-exco {
+.cadet-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    border: 1px solid #d1d5db;
+    line-height: 1;
+}
+
+/* Tema warna untuk Jawatan (Emas) */
+.jawatan-badge {
+    background-color: #F5A623;
+    color: #111827;
+    border-color: #F5A623;
+}
+
+/* Tema warna untuk Jantina (Biru/Kelabu) */
+.jantina-badge {
+    background-color: #f3f4f6;
+    color: var(--metallic-blue);
+}
+
+.dark-mode .jantina-badge {
     background-color: #1f2937;
     color: #e5e7eb;
     border-color: #374151;
+}
+
+/* Elemen Dekorasi Jawatankuasa */
+.section-sub-title {
+    text-align: center;
+    color: var(--text-color);
+    margin: 20px 0 10px 0;
+    font-size: 1.4rem;
+}
+
+.divider {
+    border: 0;
+    height: 1px;
+    background: var(--shadow-color);
+    margin: 35px auto 25px;
+    width: 50%; /* Garisan pembahagi di tengah */
+}
+
+/* ========================================= */
+/* RESPONSIVE MOBILE (3-4 kadet sebaris) */
+/* ========================================= */
+@media (max-width: 768px) {
+    .cadet-grid-flex {
+        gap: 10px;
+    }
+    
+    .cadet-card {
+        /* Automatik muat 3-4 kadet bergantung pada saiz skrin telefon */
+        width: calc(30% - 10px); 
+        min-width: 95px;  /* Limit paling kecil */
+        max-width: 120px; /* Limit paling besar untuk mobile */
+    }
+    
+    .cadet-name { font-size: 0.65rem; }
+    .cadet-matrix { font-size: 0.6rem; }
+    .cadet-badge {
+        font-size: 0.55rem;
+        padding: 2px 6px;
+    }
+    .cadet-info { padding: 8px 5px; }
 }
 
 /*=======================================================

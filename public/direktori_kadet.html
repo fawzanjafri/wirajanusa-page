@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direktori Kadet • WirajaNusa</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* CSS Khas untuk page Direktori supaya tajuk sidang nampak kemas */
+        .direktori-header { text-align: center; margin: 40px 0; color: var(--green); }
+        .sidang-group { margin-bottom: 60px; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px var(--shadow-color);}
+        .sidang-group h2 { text-align: center; margin-bottom: 20px; font-size: 1.8rem; text-transform: uppercase; letter-spacing: 2px;}
+        .title-megantara { color: #cc9900; }
+        .title-adikara { color: #004d40; }
+        .title-dirgantara { color: #01579b; }
+        .title-nagasasra { color: #b71c1c; }
+    </style>
+</head>
+<body>
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="index.html" class="nav-main-logo">
+                <img src="assets/logo.png" alt="Logo Laman Utama">
+            </a>
+        </div>
+        
+    </header>
+
+    <main style="padding: 100px 5% 50px;">
+        <h1 class="direktori-header">DIREKTORI PENUH KADET PTD</h1>
+        <p style="text-align:center; color: var(--muted); margin-top:-20px; margin-bottom: 30px;">Kohort Wiraja Nusa 2025/2026</p>
+        
+        <div class="search-container" style="text-align: center; margin-bottom: 40px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="searchKadetInput" placeholder="Cari nama atau no. matriks..." style="padding: 12px 20px; width: 100%; max-width: 400px; border-radius: 25px; border: 1px solid #d1d5db; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <button id="searchKadetBtn" class="btn" style="border-radius: 25px; padding: 12px 25px; background-color: #111827; color: #F5A623; font-weight: bold; border: 2px solid #111827; cursor: pointer;">Cari Kadet</button>
+        </div>
+        
+        <div id="direktori-grid-penuh">
+            <p style="text-align:center;">Sedang memuat turun data...</p>
+        </div>
+    </main>
+
+    <script src="script_home.js"></script>
+</body>
+</html>
