@@ -588,7 +588,7 @@ async function loadCadetProfiles() {
                     // Semak jika kadet ini adalah Jawatankuasa
                     let rank = 99; // Default (Kadet Biasa)
                     if (jawatan === "KETUA SIDANG") rank = 1;
-                    else if (jawatan.includes("TIMBALAN")) rank = 2; // Boleh tangkap 'Timbalan Ketua' dsb.
+                    else if (jawatan.includes("TIMBALAN KETUA SIDANG")) rank = 2; // Boleh tangkap 'Timbalan Ketua' dsb.
                     else if (jawatan === "BENDAHARI") rank = 3;
 
                     if (rank < 99) {
@@ -631,7 +631,6 @@ async function loadCadetProfiles() {
         if (jawatankuasa.length > 0) {
             finalHTML += `
                 <div class="jawatankuasa-section">
-                    <h3 class="section-sub-title">Jawatankuasa Sidang</h3>
                     <div class="cadet-grid-flex">
                         ${jawatankuasa.map(generateCardHTML).join('')}
                     </div>
