@@ -174,6 +174,40 @@
 
 </section>
 
+<audio id="bgMusic" loop>
+        <source src="assets/wirajanusa_ost.mp3" type="audio/mpeg">
+    </audio>
+    <button id="musicToggleBtn" class="music-btn" aria-label="Toggle Music">🔇</button>
+
+    <section id="countdown-section" class="section" style="padding-top: 40px; padding-bottom: 0;">
+        <div class="countdown-wrapper">
+            
+            <div class="count-card">
+                <h4 class="count-title">Misi Tamat Latihan DPA</h4>
+                <div class="timer-box" id="timer-dpa">
+                    <div class="time-slot"><span id="dpa-d">00</span><small>Hari</small></div>
+                    <div class="time-slot"><span id="dpa-h">00</span><small>Jam</small></div>
+                    <div class="time-slot"><span id="dpa-m">00</span><small>Minit</small></div>
+                    <div class="time-slot"><span id="dpa-s">00</span><small>Saat</small></div>
+                </div>
+            </div>
+
+            <div class="count-card">
+                <h4 class="count-title" id="modul-luar-title">Mencari Modul Luar...</h4>
+                <div class="timer-box" id="timer-modul">
+                    <div class="time-slot"><span id="mod-d">00</span><small>Hari</small></div>
+                    <div class="time-slot"><span id="mod-h">00</span><small>Jam</small></div>
+                    <div class="time-slot"><span id="mod-m">00</span><small>Minit</small></div>
+                    <div class="time-slot"><span id="mod-s">00</span><small>Saat</small></div>
+                </div>
+                <p id="modul-luar-success" style="display:none; color: var(--green); font-weight: 800; margin-top: 15px; font-size: 1.1rem;">
+                    Tahniah, anda semua berjaya!
+                </p>
+            </div>
+
+        </div>
+    </section>
+
 <section id="upcoming-event-section" class="section" style="padding-top: 40px; padding-bottom: 10px; display: none;">
       <div class="upcoming-card">
           <div class="upcoming-badge">
@@ -241,7 +275,10 @@
 
   <!-- ========== FOOTER ========== -->
   <footer>
-    © Hak Cipta Kohort WirajaNusa • 2025/2026
+      <div class="visitor-counter">
+          Jumlah Pelawat Laman Web: <span id="visitorCount">Memuatkan...</span>
+      </div>
+      © Hak Cipta Kohort WirajaNusa • 2025/2026
   </footer>
 <div id="activityModal" class="modal-overlay">
     <div class="modal">

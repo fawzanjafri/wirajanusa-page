@@ -173,6 +173,8 @@ async function loadActivitiesFromSheet() {
         
         if (typeof findNextActivity === "function") findNextActivity();
 
+        if (typeof initModulLuarCountdown === "function") initModulLuarCountdown();
+
     } catch (error) {
         console.error("Gagal tarik data kalendar:", error);
     }
@@ -1497,3 +1499,152 @@ async function loadCartaOrganisasi() {
         container.innerHTML = '<p style="color:red; text-align:center;">Gagal memuat turun data hierarki organisasi.</p>';
     }
 }
+
+// =======================================================
+// ===== 22. AUDIO BACKGROUND LOGIC =====
+// =======================================================
+const bgMusic = document.getElementById('bgMusic');
+const musicToggleBtn = document.getElementById('musicToggleBtn');
+let isMusicPlaying = false;
+
+if (bgMusic && musicToggleBtn) {
+    // Rendahkan volume sikit supaya tak terkejut
+    bgMusic.volume = 0.4; 
+
+    // Fungsi mainkan muzik (Perlu interaksi pengguna untuk elak di-block oleh browser)
+    const startMusicOnFirstInteraction = () => {
+        if (!isMusicPlaying) {
+            bgMusic.play().then(() => {
+                isMusicPlaying = true;
+                musicToggleBtn.innerHTML = '🔊';
+            }).catch(err => console.log("Muzik perlukan klik pengguna: ", err));
+        }
+        // Buang listener lepas dah main
+        document.body.removeEventListener('click', startMusicOnFirstInteraction);
+        document.body.removeEventListener('touchstart', startMusicOnFirstInteraction);
+    };
+
+    // Dengar klik pertama di mana-mana skrin
+    document.body.addEventListener('click', startMusicOnFirstInteraction);
+    document.body.addEventListener('touchstart', startMusicOnFirstInteraction);
+
+    // Fungsi butang manual Play/Pause
+    musicToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        if (isMusicPlaying) {
+            bgMusic.pause();
+            isMusicPlaying = false;
+            musicToggleBtn.innerHTML = '🔇';
+        } else {
+            bgMusic.play();
+            isMusicPlaying = true;
+            musicToggleBtn.innerHTML = '🔊';
+        }
+    });
+}
+
+// =======================================================
+// ===== 23. VISITOR COUNTER (LIVE API) =====
+// =======================================================
+const visitorSpan = document.getElementById('visitorCount');
+if (visitorSpan) {
+    // Menggunakan free API untuk mengira jumlah hit laman web
+    fetch('https://api.counterapi.dev/v1/wirajanusa_dpa/visits/up')
+        .then(response => response.json())
+        .then(data => {
+            // Format nombor (cth: 1000 jadi 1,000)
+            visitorSpan.textContent = data.count.toLocaleString();
+        })
+        .catch(error => {
+            console.error('Ralat API Pelawat:', error);
+            // Nilai sandaran (fallback) jika API gagal
+            visitorSpan.textContent = "1,042"; 
+        });
+}
+
+// =======================================================
+// ===== 24. DUAL COUNTDOWN TIMER =====
+// =======================================================
+const dpaTargetDate = new Date('2026-07-31T23:59:59').getTime(); // Target DPA Tamat
+let modulLuarTargetDate = null;
+let countdownInterval;
+
+function initModulLuarCountdown() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sortedDates = Object.keys(activities).sort((a, b) => {
+        const pA = a.split('-'); const pB = b.split('-');
+        return new Date(pA[0], pA[1]-1, pA[2]) - new Date(pB[0], pB[1]-1, pB[2]);
+    });
+
+    let foundModul = null;
+    let foundDateKey = null;
+
+    for (const dateKey of sortedDates) {
+        const parts = dateKey.split('-');
+        const actDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        actDate.setHours(0, 0, 0, 0);
+
+        if (actDate.getTime() > today.getTime()) {
+            // Carian Pintar Modul Luar: 
+            // 1. Mesti Takwim. 
+            // 2. Venue TIDAK mengandungi perkataan "INTAN".
+            foundModul = activities[dateKey].find(act => 
+                act.isTakwim && 
+                act.venue && 
+                act.venue !== "-" && 
+                !act.venue.toUpperCase().includes("INTAN")
+            );
+
+            if (foundModul) {
+                foundDateKey = actDate.getTime();
+                break;
+            }
+        }
+    }
+
+    const titleEl = document.getElementById('modul-luar-title');
+    const timerEl = document.getElementById('timer-modul');
+    const successEl = document.getElementById('modul-luar-success');
+
+    if (foundModul && titleEl) {
+        modulLuarTargetDate = foundDateKey;
+        titleEl.textContent = `Menuju: ${foundModul.name}`;
+        timerEl.style.display = 'flex';
+        successEl.style.display = 'none';
+    } else if (titleEl) {
+        // Jika tiada lagi modul luar
+        modulLuarTargetDate = null;
+        titleEl.textContent = "Modul Luar";
+        timerEl.style.display = 'none';
+        successEl.style.display = 'block';
+    }
+}
+
+function updateCountdowns() {
+    const now = new Date().getTime();
+
+    // 1. Kira Countdown DPA
+    const distDPA = dpaTargetDate - now;
+    if (distDPA > 0 && document.getElementById('dpa-d')) {
+        document.getElementById('dpa-d').textContent = String(Math.floor(distDPA / (1000 * 60 * 60 * 24))).padStart(2, '0');
+        document.getElementById('dpa-h').textContent = String(Math.floor((distDPA % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+        document.getElementById('dpa-m').textContent = String(Math.floor((distDPA % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+        document.getElementById('dpa-s').textContent = String(Math.floor((distDPA % (1000 * 60)) / 1000)).padStart(2, '0');
+    }
+
+    // 2. Kira Countdown Modul Luar
+    if (modulLuarTargetDate) {
+        const distMod = modulLuarTargetDate - now;
+        if (distMod > 0 && document.getElementById('mod-d')) {
+            document.getElementById('mod-d').textContent = String(Math.floor(distMod / (1000 * 60 * 60 * 24))).padStart(2, '0');
+            document.getElementById('mod-h').textContent = String(Math.floor((distMod % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+            document.getElementById('mod-m').textContent = String(Math.floor((distMod % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+            document.getElementById('mod-s').textContent = String(Math.floor((distMod % (1000 * 60)) / 1000)).padStart(2, '0');
+        }
+    }
+}
+
+// Mulakan jam!
+countdownInterval = setInterval(updateCountdowns, 1000);
