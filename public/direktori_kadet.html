@@ -32,8 +32,32 @@
         <p style="text-align:center; color: var(--muted); margin-top:-20px; margin-bottom: 30px;">Kohort Wiraja Nusa 2025/2026</p>
         
         <div class="search-container" style="text-align: center; margin-bottom: 40px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-            <input type="text" id="searchKadetInput" placeholder="Cari nama atau no. matriks..." style="padding: 12px 20px; width: 100%; max-width: 400px; border-radius: 25px; border: 1px solid #d1d5db; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            <button id="searchKadetBtn" class="btn" style="border-radius: 25px; padding: 12px 25px; background-color: #111827; color: #F5A623; font-weight: bold; border: 2px solid #111827; cursor: pointer;">Cari Kadet</button>
+    
+                <select id="filterSidang" style="padding: 12px; border-radius: 25px; border: 1px solid #d1d5db; outline: none; background: var(--card); color: var(--text-color);">
+                    <option value="SEMUA">Semua Sidang</option>
+                    <option value="MEGANTARA">Megantara</option>
+                    <option value="ADIKARA">Adikara</option>
+                    <option value="DIRGANTARA">Dirgantara</option>
+                    <option value="NAGASASRA">Nagasasra</option>
+                </select>
+
+                <input type="text" id="searchKadetInput" placeholder="Cari nama atau no. matriks..." style="padding: 12px 20px; width: 100%; max-width: 300px; border-radius: 25px; border: 1px solid #d1d5db; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <button id="searchKadetBtn" class="btn" style="border-radius: 25px; padding: 12px 25px; background-color: #111827; color: #F5A623; font-weight: bold; border: 2px solid #111827; cursor: pointer;">Cari</button>
+        </div>
+
+        <div id="statistik-dashboard" class="statistik-container" style="display: none;">
+            <div class="stat-card">
+                <h3 id="stat-total">0</h3>
+                <p>Jumlah Kadet</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-lelaki">0</h3>
+                <p>Lelaki</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-perempuan">0</h3>
+                <p>Perempuan</p>
+            </div>
         </div>
         
         <div id="direktori-grid-penuh">
@@ -43,4 +67,5 @@
 
     <script src="script_home.js"></script>
 </body>
+<div id="toast-container"></div>
 </html>

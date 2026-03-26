@@ -3,7 +3,11 @@
 // =======================================================
 
 // URL Google Sheet (Format CSV)
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?output=csv';
+const AKTIVITI_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?output=csv';
+const CADET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=1610115312&single=true&output=csv';
+const PEGAWAI_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=966069051&single=true&output=csv'; 
+const TAKWIM_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=218188007&single=true&output=csv';
+const MED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=1312565253&single=true&output=csv';
 
 let activities = {}; 
 let currentActiveDayElement = null; 
@@ -40,153 +44,143 @@ let currentActivityIndex = -1;
 
 
 // =======================================================
-// ===== 2. FUNGSI FETCH DATA (GOOGLE SHEETS) =====
+// ===== 2. FUNGSI FETCH DATA HYBRID (AKTIVITI + TAKWIM) =====
 // =======================================================
 async function loadActivitiesFromSheet() {
-    console.log("Memulakan proses tarik data dari Google Sheet...");
+    console.log("Memulakan proses tarik data hibrid (Aktiviti & Takwim)...");
 
     try {
-        const response = await fetch(SHEET_URL);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        // Tarik data dari dua sheet berbeza secara serentak
+        const [resAktiviti, resTakwim] = await Promise.all([
+            fetch(AKTIVITI_SHEET_URL),
+            fetch(TAKWIM_SHEET_URL)
+        ]);
+
+        if (!resAktiviti.ok || !resTakwim.ok) throw new Error("Gagal tarik salah satu data kalendar");
         
-        const data = await response.text();
+        const dataAktiviti = await resAktiviti.text();
+        const dataTakwim = await resTakwim.text();
         
-        // Reset activities
+        // Reset memori aktiviti (Elak duplicate kalau refresh)
         activities = {};
 
-        // Pecahkan baris
-        const rows = data.split('\n');
+        // --- FUNGSI HELPER: TUKAR TEKS KE OBJEK TARIKH ---
+        function parseToDate(dateStr) {
+            if (!dateStr) return null;
+            dateStr = dateStr.trim();
+            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const parts = dateStr.split('-');
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            } else if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]);
+            }
+            return null;
+        }
 
-        rows.forEach((row, index) => {
-            // Abaikan baris kosong
-            if (!row.trim()) return;
+        // --- FUNGSI HELPER: PROSES BARISAN CSV MENGIKUT TAB ---
+        const prosesDataCSV = (csvText, isTakwimRasmi) => {
+            const rows = csvText.split('\n');
+            rows.forEach((row, index) => {
+                if (index === 0 || !row.trim()) return;
 
-            // Regex untuk handle koma dalam quote (contoh: "Program A, Dewan B")
-            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
-            
-            // Fungsi cuci text (buang quote " ")
-            const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
+                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+                const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
 
-            // Pastikan ada cukup column (A=Bil, B=Date, C=Nama, D=Exco, E=Start, F=End, G=PIC)
-            if (cols.length > 2) {
-                
-                let rawDate = clean(cols[1]); // Column B (Indeks 1)
-                
-               const name = clean(cols[2]);      // Column C
-                const level = clean(cols[3]);     // Column D (Peringkat Baru)
-                const exco = clean(cols[4]);      // Column E (Asalnya D)
-                const startTime = clean(cols[5]); // Column F (Asalnya E)
-                const endTime = clean(cols[6]);   // Column G (Asalnya F)
-                const pic = clean(cols[7]);       // Column H (Asalnya G)
-                const venue = clean(cols[8]);     // Column I (Asalnya H)
+                if (cols.length >= 3) {
+                    let rawDate = clean(cols[1]); // Kolum B (Tarikh - Sama untuk dua-dua tab)
+                    let name = clean(cols[2]);    // Kolum C (Nama Program/Modul - Sama untuk dua-dua)
+                    
+                    let level, exco, startTime, endTime, pic, venue;
 
-                // Simpan data aktiviti ke dalam objek (Tambah level)
-                const activityData = {
-                    name: name,
-                    level: level, 
-                    exco: exco,
-                    startTime: startTime,
-                    endTime: endTime,
-                    pic: pic,
-                    venue: venue
-                };
-
-                // --- FUNGSI HELPER: TUKAR TEKS KE OBJEK TARIKH (VERSI STABIL) ---
-                function parseToDate(dateStr) {
-                    if (!dateStr) return null;
-                    dateStr = dateStr.trim();
-                    // Format sistem: YYYY-MM-DD
-                    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                        const parts = dateStr.split('-');
-                        // Guna parameter untuk elak isu zon masa (Timezone Shift)
-                        return new Date(parts[0], parts[1] - 1, parts[2]);
-                    } 
-                    // Format biasa: DD/MM/YYYY
-                    else if (dateStr.includes('/')) {
-                        const parts = dateStr.split('/');
-                        if (parts.length === 3) {
-                            return new Date(parts[2], parts[1] - 1, parts[0]);
-                        }
+                    if (isTakwimRasmi) {
+                        // SETTING UNTUK TAB TAKWIM AKADEMIK (Lajur A hingga F)
+                        level = clean(cols[3]) || "-"; // Lajur D: Peringkat (Akademik/Lain-lain)
+                        exco = "INTAN";   // Kekalkan INTAN supaya CSS warna kalendar jadi merah
+                        startTime = "-";  // Takwim tiada masa spesifik
+                        endTime = "-";
+                        pic = clean(cols[4]) || "-"; // Lajur E: Sidang Terlibat (Kita tumpang variable 'pic')
+                        venue = clean(cols[5]) || "-"; // Lajur F: Venue
+                    } else {
+                        // SETTING UNTUK TAB AKTIVITI (Berdasarkan Gambar 1 - A hingga I)
+                        level = clean(cols[3]) || "-";
+                        exco = clean(cols[4]) || "-";
+                        startTime = clean(cols[5]) || "-";
+                        endTime = clean(cols[6]) || "-";
+                        pic = cols.length > 7 ? clean(cols[7]) : "-";
+                        venue = cols.length > 8 ? clean(cols[8]) : "-";
                     }
-                    return null;
-                }
 
-                // --- LOGIK PARSING TARIKH PINTAR (REGEX) ---
-                // Skrip akan ekstrak SEMUA tarikh lengkap yang dia jumpa dalam kotak
-                const dateMatches = rawDate.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/g);
+                    const activityData = {
+                        name: name,
+                        level: level, 
+                        exco: exco,
+                        startTime: startTime,
+                        endTime: endTime,
+                        pic: pic,
+                        venue: venue,
+                        isTakwim: isTakwimRasmi
+                    };
 
-                if (dateMatches && dateMatches.length >= 2) {
-                    // KES 1: Tarikh Panjang (Ada 2 tarikh lengkap dikesan)
-                    const startDate = parseToDate(dateMatches[0]);
-                    const endDate = parseToDate(dateMatches[1]);
+                    const dateMatches = rawDate.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/g);
 
-                    if (startDate && endDate && startDate <= endDate) {
-                        let currentDate = new Date(startDate);
-                        while (currentDate <= endDate) {
-                            const y = currentDate.getFullYear();
-                            const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-                            const d = String(currentDate.getDate()).padStart(2, '0');
+                    if (dateMatches && dateMatches.length >= 2) {
+                        // KES 1: Tarikh Berjulat (Contoh: 2025-09-28 - 2025-10-01)
+                        const startDate = parseToDate(dateMatches[0]);
+                        const endDate = parseToDate(dateMatches[1]);
+
+                        if (startDate && endDate && startDate <= endDate) {
+                            let currentDate = new Date(startDate);
+                            while (currentDate <= endDate) {
+                                const y = currentDate.getFullYear();
+                                const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+                                const d = String(currentDate.getDate()).padStart(2, '0');
+                                const dateKey = `${y}-${m}-${d}`;
+
+                                if (!activities[dateKey]) activities[dateKey] = [];
+                                // Halang duplicate manual jika data masuk dua kali
+                                if(!activities[dateKey].some(a => a.name === name)) {
+                                    activities[dateKey].push(activityData);
+                                }
+                                currentDate.setDate(currentDate.getDate() + 1);
+                            }
+                        }
+                    } else if (dateMatches && dateMatches.length === 1) {
+                        // KES 2: Tarikh Tunggal
+                        const singleDate = parseToDate(dateMatches[0]);
+                        if (singleDate) {
+                            const y = singleDate.getFullYear();
+                            const m = String(singleDate.getMonth() + 1).padStart(2, '0');
+                            const d = String(singleDate.getDate()).padStart(2, '0');
                             const dateKey = `${y}-${m}-${d}`;
 
                             if (!activities[dateKey]) activities[dateKey] = [];
-                            activities[dateKey].push(activityData);
-
-                            // Gerak ke hari seterusnya
-                            currentDate.setDate(currentDate.getDate() + 1);
+                            if(!activities[dateKey].some(a => a.name === name)) {
+                                activities[dateKey].push(activityData);
+                            }
                         }
                     }
-                } else if (dateMatches && dateMatches.length === 1) {
-                    // KES 2: Tarikh Biasa (Hanya 1 tarikh lengkap dikesan)
-                    const singleDate = parseToDate(dateMatches[0]);
-                    if (singleDate) {
-                        const y = singleDate.getFullYear();
-                        const m = String(singleDate.getMonth() + 1).padStart(2, '0');
-                        const d = String(singleDate.getDate()).padStart(2, '0');
-                        const dateKey = `${y}-${m}-${d}`;
-
-                        if (!activities[dateKey]) activities[dateKey] = [];
-                        activities[dateKey].push(activityData);
-                    }
-                } else {
-                    console.warn("Format tarikh tidak difahami untuk aktiviti:", name, rawDate);
                 }
-            }
-        });
+            });
+        };
 
-        console.log("Data berjaya ditarik & diproses:", activities);
+        // Pastikan kita parse dua-dua data menggunakan rule yang betul
+        prosesDataCSV(dataAktiviti, false); // Baca guna rule Senarai_Aktiviti
+        prosesDataCSV(dataTakwim, true);    // Baca guna rule Takwim_Akademik
+
+        console.log("Data hibrid kalendar berjaya diproses.");
         generateCalendar(currentCalendarDate);
+        
+        if (typeof findNextActivity === "function") findNextActivity();
 
     } catch (error) {
-        console.error("Gagal tarik data Google Sheet:", error);
+        console.error("Gagal tarik data kalendar:", error);
     }
 }
 
 
 // =======================================================
-// ===== 3. DARK/LIGHT MODE LOGIC =====
-// =======================================================
-const themeToggle = document.getElementById('themeToggle');
-const body = document.body;
-const themeKey = 'wirajanusa_theme';
-
-function loadTheme() {
-    const savedTheme = localStorage.getItem(themeKey) || 'light';
-    body.classList.toggle('dark-mode', savedTheme === 'dark');
-}
-
-function toggleTheme() {
-    body.classList.toggle('dark-mode');
-    const newTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
-    localStorage.setItem(themeKey, newTheme);
-}
-
-if (themeToggle) {
-    themeToggle.addEventListener('click', toggleTheme);
-}
-
-
-// =======================================================
-// ===== 4. LOGIK PENJANAAN KALENDAR =====
+// ===== 5. LOGIK PENJANAAN KALENDAR =====
 // =======================================================
 
 function generateCalendar(date) {
@@ -229,6 +223,23 @@ function generateCalendar(date) {
         
         const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         dayElement.setAttribute('data-date-key', dateKey);
+        
+        // --- TAMBAH BLOK KOD INI (FUNGSI KLIK MOBILE AGENDA) ---
+        dayElement.addEventListener('click', (e) => {
+            // Abaikan jika yang ditekan tu butang tambah (+)
+            if(e.target.classList.contains('add-activity-btn')) return; 
+            
+            // Panggil fungsi senarai agenda di bawah kalendar
+            if (typeof showMobileAgenda === "function") {
+                showMobileAgenda(dateKey, dayElement);
+            }
+        });
+        // --------------------------------------------------------
+
+        // Tanda Hari Ini
+        if (dateKey === todayKey) {
+            dayElement.classList.add('is-today');
+        }
         
         // Tanda Hari Ini
         if (dateKey === todayKey) {
@@ -273,17 +284,27 @@ function generateCalendar(date) {
 function displayActivityOnCalendar(dateKey, activity, dayElement) {
     const activityItem = document.createElement('div');
     
-    // Kita kekalkan warna ikut Exco supaya nampak cantik
-    const excoClass = activity.exco ? `exco-${activity.exco.toLowerCase().replace(/\s+/g, '-')}` : 'exco-default';
-    activityItem.classList.add('activity-item', excoClass);
+    // --- LOGIK PENGASINGAN GAYA (TAKWIM VS AKTIVITI) ---
+    if (activity.isTakwim) {
+        // Jika ini Takwim, guna gaya tanpa warna (transparent)
+        activityItem.classList.add('activity-item', 'jenis-takwim');
+    } else {
+        // Jika ini Aktiviti, guna warna ikut nama Exco/Agensi
+        const excoClass = activity.exco ? `exco-${activity.exco.toLowerCase().replace(/\s+/g, '-')}` : 'exco-default';
+        activityItem.classList.add('activity-item', excoClass);
+    }
     
     const activityIndex = activities[dateKey].findIndex(a => a === activity);
     activityItem.setAttribute('data-activity-index', activityIndex);
     
-    // === UBAH DISPLAI DI SINI ===
+    // Logik Pintar: Jika Takwim, papar Sidang. Jika Aktiviti, papar Masa.
+    const masaAtauSidang = activity.isTakwim 
+        ? `👥 ${activity.pic}` 
+        : `🕒 ${activity.startTime} - ${activity.endTime}`;
+
     activityItem.innerHTML = `
         <span class="act-name">${activity.name}</span>
-        <span class="act-time">${activity.startTime} - ${activity.endTime}</span>
+        <span class="act-time">${masaAtauSidang}</span>
         <span class="act-venue">📍 ${activity.venue || 'TBA'}</span>
     `;
 
@@ -297,7 +318,7 @@ function displayActivityOnCalendar(dateKey, activity, dayElement) {
 
 
 // =======================================================
-// ===== 5. EVENT LISTENERS NAVIGASI KALENDAR =====
+// ===== 6. EVENT LISTENERS NAVIGASI KALENDAR =====
 // =======================================================
 if (prevMonthBtn) {
     prevMonthBtn.addEventListener('click', () => {
@@ -315,7 +336,7 @@ if (nextMonthBtn) {
 
 
 // =======================================================
-// ===== 6. LOGIK MODAL (VIEW DETAILS) =====
+// ===== 7. LOGIK MODAL (VIEW DETAILS) =====
 // =======================================================
 
 function openActivityDetailModal(activity, index, dateKey) {
@@ -329,15 +350,41 @@ function openActivityDetailModal(activity, index, dateKey) {
     const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
     const dateString = dateObj.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    // Masukkan data ke dalam Modal
+    // --- LOGIK PINTAR: TUKAR LABEL DAN DATA DINAMIK ---
+    
+    // 1. Masukkan data asas yang sama untuk kedua-duanya
     document.getElementById('detailActivityName').textContent = activity.name;
+    document.getElementById('detailActivityTitleInModal').textContent = activity.name;
     document.getElementById('detailActivityDate').textContent = dateString;
     document.getElementById('detailActivityLevel').textContent = activity.level || '-';
-    document.getElementById('detailActivityExco').textContent = activity.exco;
-    document.getElementById('detailActivityTime').textContent = `${activity.startTime} - ${activity.endTime}`;
-    document.getElementById('detailActivityPIC').textContent = activity.pic || '-';
     document.getElementById('detailActivityVenue').textContent = activity.venue || '-';
-    document.getElementById('detailActivityTitleInModal').textContent = activity.name;
+
+    // Elemen yang akan berubah-ubah
+    const detailExco = document.getElementById('detailActivityExco');
+    const detailTime = document.getElementById('detailActivityTime');
+    const detailPIC = document.getElementById('detailActivityPIC');
+    
+    if (activity.isTakwim) {
+        // JIKA INI DATA TAKWIM (INTAN):
+        detailExco.parentElement.style.display = 'none'; // Sorokkan baris "Exco"
+        detailTime.parentElement.style.display = 'none'; // Sorokkan baris "Masa"
+        
+        // Tukar perkataan "Pengarah Program" jadi "Sidang Terlibat"
+        detailPIC.previousElementSibling.textContent = 'Sidang Terlibat:';
+        detailPIC.textContent = activity.pic || '-';
+        
+    } else {
+        // JIKA INI DATA AKTIVITI KADET:
+        detailExco.parentElement.style.display = 'flex'; // Tunjukkan baris "Exco"
+        detailTime.parentElement.style.display = 'flex'; // Tunjukkan baris "Masa"
+        
+        detailExco.textContent = activity.exco;
+        detailTime.textContent = `${activity.startTime} - ${activity.endTime}`;
+        
+        // Tukar semula label kepada asalnya
+        detailPIC.previousElementSibling.textContent = 'Pengarah Program:';
+        detailPIC.textContent = activity.pic || '-';
+    }
 
     activityDetailModal.classList.add('active');
 }
@@ -359,43 +406,152 @@ if (activityDetailModal) {
 // Logik Butang Delete (Hanya padam sementara di skrin, tidak delete di Google Sheet)
 if (deleteActivityBtn) {
     deleteActivityBtn.addEventListener('click', () => {
-        alert("Fungsi padam hanya boleh dilakukan oleh Admin melalui Google Sheets.");
+        showToast("Hanya Admin boleh padam melalui Google Sheets.", "error");
     });
 }
 
 
 // =======================================================
-// ===== 7. LOGIK MODAL TAMBAH (LEGACY - HIDDEN) =====
+// ===== 8. LOGIK MODAL TAMBAH & SIMPAN KE GOOGLE SHEETS =====
 // =======================================================
-// Fungsi ini dikekalkan supaya kod tidak error jika ada panggilan 'openActivityModal'
-function openActivityModal(dayElement) {
+
+let selectedDateForNewActivity = "";
+
+// 1. TAMPAL URL WEB APP ANDA DI SINI
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwgKsZRdXr1DsO5CrlHeW4Qx60BVRdZHUjFQwT4v94ucnyzvvyZ55dQ9iakyNIn_p3F/exec';
+
+// Fungsi buka modal dan set tarikh
+function openActivityModal(dateKey) {
     if (!activityModal) return;
-    // Logik tambah aktiviti manual dimatikan kerana guna Google Sheet
-    alert("Sila tambah aktiviti melalui Google Sheets.");
+    selectedDateForNewActivity = dateKey;
+
+    // Format tarikh untuk tajuk Modal (Contoh: 15/11/2025)
+    const parts = dateKey.split('-');
+    const displayDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    if(modalDateSpan) modalDateSpan.textContent = displayDate;
+
+    // Kosongkan form input setiap kali borang dibuka
+    document.getElementById('activityName').value = '';
+    document.getElementById('activityLevel').value = 'INTAN';
+    document.getElementById('activityExco').value = 'Majlis Tertinggi';
+    document.getElementById('activityStartTime').value = '';
+    document.getElementById('activityEndTime').value = '';
+    document.getElementById('activityPIC').value = '';
+
+    activityModal.classList.add('active');
 }
 
 function closeActivityModal() {
     if (activityModal) activityModal.classList.remove('active');
 }
 
+// Tutup modal bila butang X atau overlay ditekan
 if (closeModalBtn) closeModalBtn.addEventListener('click', closeActivityModal);
-if (activityModal) activityModal.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) closeActivityModal();
-});
+if (activityModal) {
+    activityModal.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) closeActivityModal();
+    });
+}
 
-// Event Delegation untuk butang '+' (Jika butang ini didedahkan semula)
+// Event Delegation untuk tangkap klik butang '+' di kalendar
 if (calendarDays) {
     calendarDays.addEventListener('click', (e) => {
         if (e.target.classList.contains('add-activity-btn')) {
             e.stopPropagation();
-            alert("Sila tambah aktiviti melalui Google Sheets.");
+            const dateKey = e.target.getAttribute('data-date-key');
+            openActivityModal(dateKey);
         }
     });
 }
 
+// ==========================================
+// 9. FUNGSI HANTAR DATA KE GOOGLE SHEETS (API)
+// ==========================================
+async function saveActivityToSheet() {
+    // Ambil nilai dari borang
+    const nama = document.getElementById('activityName').value.trim();
+    const peringkat = document.getElementById('activityLevel').value;
+    const exco = document.getElementById('activityExco').value;
+    const mula = document.getElementById('activityStartTime').value;
+    const tamat = document.getElementById('activityEndTime').value;
+    const pic = document.getElementById('activityPIC').value.trim();
+    const venue = "-"; // Set default '-' kerana form asal tiada input venue
+
+    // Validasi ringkas
+    if (!nama || !mula || !tamat) {
+        if (typeof showToast === 'function') {
+            showToast("Sila isikan Nama Aktiviti, Waktu Mula dan Tamat.", "warning");
+        } else {
+            alert("Sila isikan Nama Aktiviti, Waktu Mula dan Tamat.");
+        }
+        return;
+    }
+
+    // Tukar teks butang supaya user tahu sistem sedang memproses
+    const originalText = saveActivityBtn.textContent;
+    saveActivityBtn.textContent = "Menyimpan...";
+    saveActivityBtn.disabled = true;
+
+    // Susun data ke dalam objek (Pastikan key ini sama dengan kod di Google Apps Script)
+    const payload = {
+        tarikh: selectedDateForNewActivity,
+        nama: nama,
+        peringkat: peringkat,
+        exco: exco,
+        mula: mula,
+        tamat: tamat,
+        pic: pic,
+        venue: venue
+    };
+
+    try {
+        // Hantar data menggunakan Fetch API (POST)
+        const response = await fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            // Hantar sebagai text/plain untuk elak isu CORS dari pelayar web
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+            if (typeof showToast === 'function') {
+                showToast("Aktiviti berjaya disimpan!", "success");
+            } else {
+                alert("Aktiviti berjaya disimpan!");
+            }
+            
+            closeActivityModal();
+            
+            // PENTING: Tarik semula data dari Google Sheets supaya kalendar terus update!
+            loadActivitiesFromSheet(); 
+            
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        console.error("Ralat menyimpan data:", error);
+        if (typeof showToast === 'function') {
+            showToast("Gagal menyambung ke pangkalan data.", "error");
+        } else {
+            alert("Gagal menyambung ke pangkalan data.");
+        }
+    } finally {
+        // Kembalikan butang kepada keadaan asal
+        saveActivityBtn.textContent = originalText;
+        saveActivityBtn.disabled = false;
+    }
+}
+
+// Sambungkan butang "Simpan Aktiviti" dengan fungsi di atas
+if (saveActivityBtn) {
+    saveActivityBtn.onclick = saveActivityToSheet;
+}
+
 
 // =======================================================
-// ===== 8. SIDEBAR LOGIC =====
+// ===== 10. SIDEBAR LOGIC =====
 // =======================================================
 const sidebarPanel = document.getElementById("sidebarPanel");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
@@ -423,7 +579,7 @@ if (sidebarOverlay) {
 }
 
 // =======================================================
-// ===== LOGIK DROPDOWN SIDEBAR (ACCORDION) =====
+// ===== 11. LOGIK DROPDOWN SIDEBAR (ACCORDION) =====
 // =======================================================
 const submenuToggles = document.querySelectorAll('.submenu-toggle');
 
@@ -449,9 +605,8 @@ submenuToggles.forEach(toggle => {
     });
 });
 
-
 // =======================================================
-// ===== 9. VIDEO SLIDESHOW LOGIC (HYBRID) =====
+// ===== 12. VIDEO SLIDESHOW LOGIC (PREMIUM UPGRADE) =====
 // =======================================================
 const videoSources = [
   "assets/videos/hero1.mp4",
@@ -461,37 +616,56 @@ const videoSources = [
 const videos = document.querySelectorAll(".hero-video");
 const prevVideoBtn = document.getElementById("prevVideo");
 const nextVideoBtn = document.getElementById("nextVideo");
+const pausePlayBtn = document.getElementById("pausePlayBtn");
+const playIcon = document.getElementById("playIcon");
+const pauseIcon = document.getElementById("pauseIcon");
 
 let currentVideoIndex = 0;
 let slideInterval; 
+let isPlaying = true; // Status sama ada slideshow sedang berjalan
 
 if (videos.length > 0) {
     
-    // Play all videos muted initially for smooth transition
+    // Set sumber video tetapi JANGAN mainkan semuanya serentak
     videos.forEach((vid, index) => {
         if (videoSources[index]) {
             vid.src = videoSources[index];
             vid.muted = true; 
-            vid.play().catch(e => console.log("Autoplay prevented:", e));
         }
     });
 
+    // Mainkan video pertama sahaja pada permulaan
+    videos[0].classList.add("active");
+    videos[0].play().catch(e => console.log("Autoplay dihalang pelayar:", e));
+
     function showVideo(index) {
-        videos.forEach(v => v.classList.remove("active"));
+        videos.forEach((v, i) => {
+            v.classList.remove("active");
+            if (i !== index) {
+                // Berhentikan video yang tidak aktif selepas animasi fade out tamat (1.5 saat)
+                // Ini sangat menjimatkan RAM & Bateri pengguna!
+                setTimeout(() => v.pause(), 1500); 
+            }
+        });
+        
         videos[index].classList.add("active");
-        videos[index].play().catch(e => console.log(e));
+        
+        // Hanya mainkan jika status keseluruhan adalah 'Playing'
+        if (isPlaying) {
+            videos[index].play().catch(e => console.log(e));
+        }
     }
 
     function nextSlide() {
         currentVideoIndex = (currentVideoIndex + 1) % videos.length;
         showVideo(currentVideoIndex);
-        resetTimer();
+        if(isPlaying) resetTimer();
     }
 
     function prevSlide() {
         currentVideoIndex = (currentVideoIndex - 1 + videos.length) % videos.length;
         showVideo(currentVideoIndex);
-        resetTimer();
+        if(isPlaying) resetTimer();
     }
 
     function startTimer() {
@@ -506,6 +680,27 @@ if (videos.length > 0) {
         startTimer();
     }
 
+    // --- Logik Butang Pause/Play ---
+    if (pausePlayBtn) {
+        pausePlayBtn.addEventListener("click", () => {
+            isPlaying = !isPlaying; // Tukar status
+            
+            if (isPlaying) {
+                // Jika ditekan Play
+                videos[currentVideoIndex].play();
+                startTimer();
+                playIcon.style.display = "none";
+                pauseIcon.style.display = "block";
+            } else {
+                // Jika ditekan Pause
+                videos[currentVideoIndex].pause();
+                clearInterval(slideInterval); // Hentikan pertukaran automatik
+                playIcon.style.display = "block";
+                pauseIcon.style.display = "none";
+            }
+        });
+    }
+
     if (nextVideoBtn) nextVideoBtn.addEventListener("click", nextSlide);
     if (prevVideoBtn) prevVideoBtn.addEventListener("click", prevSlide);
 
@@ -514,81 +709,128 @@ if (videos.length > 0) {
 
 
 // =======================================================
-// ===== 10. INITIALIZATION =====
+// ===== 13. INITIALIZATION =====
 // =======================================================
 document.addEventListener('DOMContentLoaded', () => {
-    loadTheme();
     loadActivitiesFromSheet(); // Tarik data sheet
     loadCadetProfiles();
     loadDirektoriPenuh();
+    loadDirektoriPegawai();
+    loadCartaOrganisasi();
 });
 
 // =======================================================
-// ===== 11. FUNGSI FETCH PROFIL KADET (SIDANG) =====
+// ===== 14. FUNGSI FETCH PROFIL KADET & PEGAWAI (SIDANG) =====
 // =======================================================
 
-// TAMPAL LINK CSV 'INFO KADET' DI SINI
-const CADET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=1610115312&single=true&output=csv';
-
 async function loadCadetProfiles() {
-    // Kita target ID container asal
     const gridContainer = document.getElementById('cadet-grid');
     if (!gridContainer) return; 
 
     const currentSidang = gridContainer.getAttribute('data-sidang').toUpperCase();
-    console.log("Memuat turun profil untuk sidang:", currentSidang);
+    console.log("Memuat turun profil & pegawai untuk sidang:", currentSidang);
 
     try {
-        const response = await fetch(CADET_SHEET_URL);
-        if (!response.ok) throw new Error("Gagal tarik data profil");
+        // Tarik data Pegawai dan Kadet serentak
+        const [resPegawai, resKadet] = await Promise.all([
+            fetch(PEGAWAI_SHEET_URL),
+            fetch(CADET_SHEET_URL)
+        ]);
+
+        if (!resPegawai.ok || !resKadet.ok) throw new Error("Gagal tarik data");
         
-        const data = await response.text();
-        const rows = data.split('\n');
+        const dataPegawai = await resPegawai.text();
+        const dataKadet = await resKadet.text();
 
-        // Sediakan dua "bakul" untuk asingkan kadet
-        let jawatankuasa = [];
-        let kadetBiasa = [];
-
-        rows.forEach((row, index) => {
+        // --- 1. PROSES DATA PEGAWAI PENYELARAS ---
+        let pegawaiSidang = [];
+        const rowsPegawai = dataPegawai.split('\n');
+        
+        rowsPegawai.forEach((row, index) => {
             if (index === 0 || !row.trim()) return; 
-            
             const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
             const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
 
-            // SUSUNAN BARU (A=Nama, B=Matriks, C=Sidang, D=Jawatan, E=Jantina, F=Gambar)
-            if (cols.length >= 6) {
+            if (cols.length >= 3) {
                 const nama = clean(cols[0]); 
-                const matriks = clean(cols[1]);
-                const sidang = clean(cols[2]).toUpperCase();
-                const jawatan = clean(cols[3]).toUpperCase(); // Kolum D
-                const jantina = clean(cols[4]).toUpperCase(); // Kolum E
-                const photoUrl = clean(cols[5]);              // Kolum F
+                const sidang = clean(cols[1]).toUpperCase();
+                const jawatan = clean(cols[2]);
+                const photoUrl = cols.length > 3 ? clean(cols[3]) : "";
 
                 if (sidang === currentSidang) {
-                    
                     let finalPhoto = photoUrl;
                     if (photoUrl && photoUrl.includes("drive.google.com")) {
                         let fileId = "";
                         if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
                         else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
-                        
-                        if (fileId && fileId.length > 10) {
-                            finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
-                        }
+                        if (fileId && fileId.length > 10) finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
                     }
 
                     let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
-                    if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") {
-                        finalPhoto = fallbackImg;
+                    if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") finalPhoto = fallbackImg;
+
+                    // --- SISTEM PENGESAN PANGKAT PEGAWAI ---
+                    let pRank = 99; // Lalai
+                    const j = jawatan.toUpperCase();
+                    if (j.includes("KETUA UNIT")) pRank = 1;
+                    else if (j.includes("KETUA PENOLONG PENGARAH KANAN")) pRank = 2;
+                    else if (j.includes("KETUA PENOLONG PENGARAH")) pRank = 3;
+                    else if (j.includes("PENOLONG PENGARAH KANAN")) pRank = 4;
+                    else if (j.includes("PENOLONG PENGARAH")) pRank = 5;
+
+                    pegawaiSidang.push({ nama, jawatan, finalPhoto, fallbackImg, isPegawai: true, pRank });
+                }
+            }
+        });
+
+        // --- SUSUNAN PEGAWAI (KEDUA KIRI, PERTAMA TENGAH, KETIGA KANAN) ---
+        // Mula-mula, susun ikut pangkat (1, 2, 3...)
+        pegawaiSidang.sort((a, b) => a.pRank - b.pRank);
+        
+        if (pegawaiSidang.length >= 3) {
+            // Jika 3 pegawai atau lebih: Kedua Kiri, Pertama Tengah, Ketiga Kanan
+            const first = pegawaiSidang[0];
+            const second = pegawaiSidang[1];
+            const third = pegawaiSidang[2];
+            const rest = pegawaiSidang.slice(3);
+            pegawaiSidang = [second, first, third, ...rest]; 
+        }
+
+        // --- 2. PROSES DATA KADET ---
+        let jawatankuasa = [];
+        let kadetBiasa = [];
+        const rowsKadet = dataKadet.split('\n');
+
+        rowsKadet.forEach((row, index) => {
+            if (index === 0 || !row.trim()) return; 
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
+
+            if (cols.length >= 6) {
+                const nama = clean(cols[0]); 
+                const matriks = clean(cols[1]);
+                const sidang = clean(cols[2]).toUpperCase();
+                const jawatan = clean(cols[3]).toUpperCase(); 
+                const jantina = clean(cols[4]).toUpperCase(); 
+                const photoUrl = clean(cols[5]);              
+
+                if (sidang === currentSidang) {
+                    let finalPhoto = photoUrl;
+                    if (photoUrl && photoUrl.includes("drive.google.com")) {
+                        let fileId = "";
+                        if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
+                        else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
+                        if (fileId && fileId.length > 10) finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
                     }
 
-                    // Objek data seorang kadet
-                    const cadetObj = { nama, matriks, jawatan, jantina, finalPhoto, fallbackImg };
+                    let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
+                    if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") finalPhoto = fallbackImg;
 
-                    // Semak jika kadet ini adalah Jawatankuasa
-                    let rank = 99; // Default (Kadet Biasa)
+                    const cadetObj = { nama, matriks, jawatan, jantina, finalPhoto, fallbackImg, isPegawai: false };
+
+                    let rank = 99; 
                     if (jawatan === "KETUA SIDANG") rank = 1;
-                    else if (jawatan.includes("TIMBALAN KETUA SIDANG")) rank = 2; // Boleh tangkap 'Timbalan Ketua' dsb.
+                    else if (jawatan.includes("TIMBALAN KETUA SIDANG")) rank = 2; 
                     else if (jawatan === "BENDAHARI") rank = 3;
 
                     if (rank < 99) {
@@ -601,35 +843,60 @@ async function loadCadetProfiles() {
             }
         });
 
-        // --- SUSUNAN KHAS JAWATANKUASA (TIMBALAN KIRI, KETUA TENGAH, BENDAHARI KANAN) ---
+        // Susun Jawatankuasa (Timbalan Kiri, Ketua Tengah, Bendahari Kanan)
         let ketuas = jawatankuasa.filter(k => k.rank === 1);
         let timbalans = jawatankuasa.filter(k => k.rank === 2);
         let bendaharis = jawatankuasa.filter(k => k.rank === 3);
-        
-        // Gabungkan semula mengikut urutan yang kau nak
         jawatankuasa = [...timbalans, ...ketuas, ...bendaharis];
 
-        // Fungsi Helper untuk buat kod HTML kad kadet
-        const generateCardHTML = (c) => `
-            <div class="cadet-card">
-                <div class="cadet-photo-container">
-                    <img src="${c.finalPhoto}" alt="${c.nama}" class="cadet-photo" onerror="this.src='${c.fallbackImg}'">
+        // --- 3. JANA HTML (GAYA DINAMIK) ---
+        const generateCardHTML = (c) => {
+            // JIKA PEGAWAI: Kosongkan ruang Matriks/Jawatan (Tinggal nama & gambar sahaja)
+            // JIKA KADET: Paparkan No Matriks
+            const matrixOrJawatan = c.isPegawai 
+                ? '' // Kosongkan
+                : '<p class="cadet-matrix">' + c.matriks + '</p>';
+                
+            // Pegawai tak perlu lencana jawatan/jantina kecil di bawah
+            const badges = c.isPegawai ? '' : `
+                <div class="cadet-badges">
+                    ${c.jawatan && c.jawatan !== "-" ? '<span class="cadet-badge jawatan-badge">' + c.jawatan + '</span>' : ''}
+                    ${c.jantina && c.jantina !== "-" ? '<span class="cadet-badge jantina-badge">' + c.jantina + '</span>' : ''}
                 </div>
-                <div class="cadet-info">
-                    <h3 class="cadet-name">${c.nama}</h3>
-                    <p class="cadet-matrix">${c.matriks}</p>
-                    <div class="cadet-badges">
-                        ${c.jawatan && c.jawatan !== "-" ? `<span class="cadet-badge jawatan-badge">${c.jawatan}</span>` : ''}
-                        ${c.jantina && c.jantina !== "-" ? `<span class="cadet-badge jantina-badge">${c.jantina}</span>` : ''}
+            `;
+
+            return `
+                <div class="cadet-card" ${c.isPegawai ? 'style="border: 2px solid #F5A623; box-shadow: 0 4px 15px rgba(245, 166, 35, 0.15); margin-bottom: 10px;"' : ''}>
+                    <div class="cadet-photo-container">
+                        <img src="${c.finalPhoto}" alt="${c.nama}" class="cadet-photo" onerror="this.src='${c.fallbackImg}'">
                     </div>
-                </div>
-            </div>`;
+                    <div class="cadet-info" style="${c.isPegawai ? 'justify-content: center;' : ''}">
+                        <h3 class="cadet-name" style="${c.isPegawai ? 'font-size: 0.9rem; margin-bottom: 0;' : ''}">${c.nama}</h3>
+                        ${matrixOrJawatan}
+                        ${badges}
+                    </div>
+                </div>`;
+        };
 
         let finalHTML = '';
 
-        // TAMPAL SEKSYEN JAWATANKUASA (Jika Ada)
+        // TAMPAL SEKSYEN PEGAWAI (PALING ATAS)
+        if (pegawaiSidang.length > 0) {
+            finalHTML += `
+                <h3 class="section-sub-title" style="color: #F5A623; font-weight: 800; font-size: 1.2rem; margin-bottom: 15px; text-transform: uppercase;">PEGAWAI PENYELARAS</h3>
+                <div class="jawatankuasa-section">
+                    <div class="cadet-grid-flex">
+                        ${pegawaiSidang.map(generateCardHTML).join('')}
+                    </div>
+                </div>
+                <hr class="divider">
+            `;
+        }
+
+        // TAMPAL SEKSYEN JAWATANKUASA
         if (jawatankuasa.length > 0) {
             finalHTML += `
+                <h3 class="section-sub-title" style="font-size: 1.2rem; margin-bottom: 15px; text-transform: uppercase;">JAWATANKUASA SIDANG</h3>
                 <div class="jawatankuasa-section">
                     <div class="cadet-grid-flex">
                         ${jawatankuasa.map(generateCardHTML).join('')}
@@ -648,8 +915,8 @@ async function loadCadetProfiles() {
                     </div>
                 </div>
             `;
-        } else if (jawatankuasa.length === 0) {
-            finalHTML = '<p style="text-align:center; width:100%; color:#888;">Tiada rekod kadet dijumpai untuk sidang ini.</p>';
+        } else if (jawatankuasa.length === 0 && pegawaiSidang.length === 0) {
+            finalHTML = '<p style="text-align:center; width:100%; color:#888;">Tiada rekod dijumpai untuk sidang ini.</p>';
         }
 
         gridContainer.innerHTML = finalHTML;
@@ -661,7 +928,7 @@ async function loadCadetProfiles() {
 }
 
 // =======================================================
-// ===== 12. FUNGSI FETCH DIREKTORI PENUH (SEMUA SIDANG A-Z) =====
+// ===== 15. FUNGSI FETCH DIREKTORI PENUH (SEMUA SIDANG A-Z) =====
 // =======================================================
 async function loadDirektoriPenuh() {
     const direktoriContainer = document.getElementById('direktori-grid-penuh');
@@ -754,65 +1021,479 @@ async function loadDirektoriPenuh() {
 }
 
 // =======================================================
-// ===== ENJIN CARIAN KADET (MELUNCUR & HIGHLIGHT) =====
+// ===== 16. FUNGSI FETCH DIREKTORI PEGAWAI (UDPA) =====
+// =======================================================
+
+async function loadDirektoriPegawai() {
+    const container = document.getElementById('direktori-grid-pegawai');
+    if (!container) return; 
+
+    console.log("Memuat turun direktori pegawai...");
+
+    try {
+        const response = await fetch(PEGAWAI_SHEET_URL);
+        if (!response.ok) throw new Error("Gagal tarik data pegawai");
+        
+        const data = await response.text();
+        
+        // Peringkat Keselamatan: Semak kalau tersalah letak link web HTML
+        if (data.trim().startsWith('<') || data.includes('<!DOCTYPE html>')) {
+            container.innerHTML = '<p style="color:red; text-align:center;">Ralat: Sila pastikan link diletak adalah format CSV (Bukan link web biasa).</p>';
+            return;
+        }
+
+        const rows = data.split('\n');
+
+        let kudpa = [];
+        let pegawaiLain = [];
+
+        rows.forEach((row, index) => {
+            if (index === 0 || !row.trim()) return; // Abaikan header
+            
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
+
+            // LAJUR BARU: A=Nama, B=Sidang, C=Jawatan, D=Gambar
+            if (cols.length >= 3) {
+                const nama = clean(cols[0]); 
+                const sidang = clean(cols[1]).toUpperCase(); // Lajur B
+                const jawatan = clean(cols[2]); // Lajur C
+                const photoUrl = cols.length > 3 ? clean(cols[3]) : ""; // Lajur D            
+
+                // Baiki link Google Drive jika ada (walaupun anda guna postimg, kita biarkan untuk langkah berjaga-jaga)
+                let finalPhoto = photoUrl;
+                if (photoUrl && photoUrl.includes("drive.google.com")) {
+                    let fileId = "";
+                    if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
+                    else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
+                    if (fileId && fileId.length > 10) finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
+                }
+
+                let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
+                if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") finalPhoto = fallbackImg;
+
+                const pegawaiObj = { nama, sidang, jawatan, finalPhoto, fallbackImg };
+
+                // Asingkan KUDPA (Kita tangkap perkataan "Ketua Unit")
+                if (jawatan.toUpperCase().includes("KETUA UNIT DIPLOMA")) {
+                    kudpa.push(pegawaiObj);
+                } else {
+                    pegawaiLain.push(pegawaiObj);
+                }
+            }
+        });
+
+        // --- FUNGSI PEWARNA LENCANA SIDANG ---
+        const getSidangColor = (s) => {
+            if(s === 'MEGANTARA') return 'background-color:#F5A623; color:#111; border-color:#F5A623;';
+            if(s === 'ADIKARA') return 'background-color:#004d40; color:#fff; border-color:#004d40;';
+            if(s === 'DIRGANTARA') return 'background-color:#01579b; color:#fff; border-color:#01579b;';
+            if(s === 'NAGASASRA') return 'background-color:#b71c1c; color:#fff; border-color:#b71c1c;';
+            return 'background-color:#e5e7eb; color:#333;';
+        };
+
+        // --- BINA KAD (Dengan gaya khas untuk KUDPA) ---
+        const generateCardHTML = (p, isKudpa) => `
+            <div class="cadet-card" ${isKudpa ? 'style="width: 180px; transform: scale(1.05); border: 2px solid #F5A623; box-shadow: 0 8px 25px rgba(245, 166, 35, 0.2);"' : ''}>
+                <div class="cadet-photo-container">
+                    <img src="${p.finalPhoto}" alt="${p.nama}" class="cadet-photo" loading="lazy" onerror="this.src='${p.fallbackImg}'">
+                </div>
+                <div class="cadet-info">
+                    <h3 class="cadet-name">${p.nama}</h3>
+                    <p class="cadet-matrix" style="color: ${isKudpa ? '#F5A623' : 'var(--muted)'}; font-weight: ${isKudpa ? '800' : '600'}; font-size: 0.65rem; margin-bottom: 8px;">${p.jawatan}</p>
+                    <div class="cadet-badges">
+                        ${p.sidang && p.sidang !== "-" ? `<span class="cadet-badge" style="${getSidangColor(p.sidang)}">${p.sidang}</span>` : ''}
+                    </div>
+                </div>
+            </div>`;
+
+        let finalHTML = '';
+
+        // SEKSYEN 1: TAMPAL KUDPA DI ATAS TENGAH
+        if (kudpa.length > 0) {
+            finalHTML += `
+                <div style="display: flex; justify-content: center; margin-bottom: 40px;">
+                    ${kudpa.map(p => generateCardHTML(p, true)).join('')}
+                </div>
+                <hr class="divider" style="margin-bottom: 40px; width: 30%;">
+            `;
+        }
+
+        // SEKSYEN 2: TAMPAL PEGAWAI LAIN BERSUSUN
+        if (pegawaiLain.length > 0) {
+            finalHTML += `
+                <div class="cadet-grid-flex">
+                    ${pegawaiLain.map(p => generateCardHTML(p, false)).join('')}
+                </div>
+            `;
+        }
+
+        container.innerHTML = finalHTML;
+
+    } catch (error) {
+        console.error("Ralat Direktori Pegawai:", error);
+        container.innerHTML = '<p style="color:red; text-align:center;">Gagal memuat turun data dari pelayan. Pastikan link CSV betul.</p>';
+    }
+}
+
+// =======================================================
+// ===== 17. ENJIN CARIAN KADET & STATISTIK (MELUNCUR & HIGHLIGHT) =====
 // =======================================================
 function setupSearchFunction(semuaKadet) {
     const searchInput = document.getElementById('searchKadetInput');
     const searchBtn = document.getElementById('searchKadetBtn');
+    const filterSidang = document.getElementById('filterSidang');
     
-    if (!searchInput || !searchBtn) return;
+    // Fungsi Kira Statistik Live
+    const updateStatistik = (senarai) => {
+        const dashboard = document.getElementById('statistik-dashboard');
+        if (!dashboard) return;
 
-    const performSearch = () => {
+        const total = senarai.length;
+        // Kira jantina. Anggap data dalam sheet menggunakan huruf 'L' atau perkataan 'LELAKI'
+        const lelaki = senarai.filter(k => k.jantina.startsWith('L')).length; 
+        const perempuan = senarai.filter(k => k.jantina.startsWith('P')).length;
+
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-lelaki').textContent = lelaki;
+        document.getElementById('stat-perempuan').textContent = perempuan;
+        
+        dashboard.style.display = 'flex'; // Tunjukkan kotak lepas dah siap kira
+    };
+
+    // Paparkan statistik semua kadet pada mula-mula page dibuka
+    updateStatistik(semuaKadet);
+
+    if (!searchInput || !searchBtn || !filterSidang) return;
+
+    const applyFilters = () => {
         const query = searchInput.value.toLowerCase().trim();
-        if (!query) return;
+        const selectedSidang = filterSidang.value;
 
-        // Cari kadet yang match pada sebahagian nama atau matriks
-        const foundKadet = semuaKadet.find(k => 
-            k.nama.toLowerCase().includes(query) || 
-            k.matriks.toLowerCase().includes(query)
-        );
+        let kadetDitemui = [];
 
-        if (foundKadet) {
-            // Cari elemen kad di skrin
-            const targetId = `kadet-${foundKadet.matriks.replace(/\s+/g, '')}`;
+        semuaKadet.forEach(k => {
+            const targetId = `kadet-${k.matriks.replace(/\s+/g, '')}`;
             const targetElement = document.getElementById(targetId);
             
-            if (targetElement) {
-                // Bersihkan sebarang highlight lama
-                document.querySelectorAll('.cadet-card').forEach(el => {
-                    el.style.boxShadow = '';
-                    el.style.transform = '';
-                    el.style.border = '1px solid #eee';
-                });
+            if (!targetElement) return;
 
-                // Meluncur terus ke muka kadet
-                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                // Beri efek 'menyala' supaya mata user terus nampak
-                setTimeout(() => {
-                    targetElement.style.transition = 'all 0.5s ease';
-                    targetElement.style.boxShadow = '0 0 25px rgba(245, 166, 35, 0.8)'; // Glow Emas
-                    targetElement.style.border = '2px solid #F5A623';
-                    targetElement.style.transform = 'scale(1.05)';
-                    
-                    // Padam efek lepas 3 saat
-                    setTimeout(() => {
-                        targetElement.style.boxShadow = '';
-                        targetElement.style.border = '1px solid #eee';
-                        targetElement.style.transform = '';
-                    }, 3000);
-                }, 400); // Tunggu sikit bagi dia siap scroll
+            const matchText = k.nama.toLowerCase().includes(query) || k.matriks.toLowerCase().includes(query);
+            const matchSidang = selectedSidang === "SEMUA" || k.sidang === selectedSidang;
+
+            if (matchText && matchSidang) {
+                targetElement.style.display = 'flex';
+                kadetDitemui.push(k); // Simpan kadet yang lulus tapisan ke dalam memori
+            } else {
+                targetElement.style.display = 'none';
             }
-        } else {
-            alert('Tiada kadet dijumpai. Sila pastikan ejaan nama atau nombor matriks betul.');
+        });
+
+        // Update kotak statistik dengan data yang dah ditapis
+        updateStatistik(kadetDitemui);
+
+        if (kadetDitemui.length === 0) {
+            if (typeof showToast === 'function') {
+                showToast('Tiada kadet sepadan dengan carian ini.', 'warning');
+            } else {
+                alert('Tiada kadet sepadan.');
+            }
         }
     };
 
-    // Apabila butang ditekan
-    searchBtn.addEventListener('click', performSearch);
-    
-    // Apabila user tekan 'Enter' di keyboard
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSearch();
+    searchBtn.addEventListener('click', applyFilters);
+    filterSidang.addEventListener('change', applyFilters);
+    searchInput.addEventListener('input', applyFilters); // Auto-filter masa tengah menaip
+}
+
+// =======================================================
+// =====18. FUNGSI TOAST NOTIFICATION =====
+// =======================================================
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    // Cipta elemen div baru
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    // Masukkan ke dalam container
+    container.appendChild(toast);
+
+    // Animasi masuk (bagi sikit masa untuk render)
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+
+    // Animasi keluar dan buang dari DOM selepas 3 saat
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+        }, 400); // Tunggu animasi transition CSS selesai
+    }, 3000);
+}
+
+// =======================================================
+// =====19. FUNGSI PINTAR: AKTIVITI SETERUSNYA (KADET SAHAJA) =====
+// =======================================================
+function findNextActivity() {
+    const container = document.getElementById('upcoming-event-section');
+    if (!container) return; 
+
+    // Dapatkan tarikh hari ini tepat pada jam 00:00:00 (Tengah Malam)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let nextDateKey = null;
+    let nextActivity = null;
+
+    // Susun semua tarikh dari lama ke baru secara tepat
+    const sortedDates = Object.keys(activities).sort((a, b) => {
+        const pA = a.split('-');
+        const pB = b.split('-');
+        return new Date(pA[0], pA[1] - 1, pA[2]) - new Date(pB[0], pB[1] - 1, pB[2]);
     });
+
+    // Cari tarikh pertama yang HANYA PADA MASA DEPAN (Esok dan ke atas)
+    for (const dateKey of sortedDates) {
+        const parts = dateKey.split('-');
+        
+        // Memaksa JavaScript menggunakan waktu tempatan (Local Time)
+        const activityDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        activityDate.setHours(0, 0, 0, 0);
+        
+        // Semak jika tarikh adalah hari esok atau ke atas
+        if (activityDate.getTime() > today.getTime()) {
+            
+            // LOGIK BARU: Tapis dan ambil aktiviti yang BUKAN Takwim sahaja
+            const aktivitiKadetSahaja = activities[dateKey].filter(act => act.isTakwim === false);
+            
+            // Jika ada aktiviti kadet pada hari tersebut, kita ambil yang pertama
+            if (aktivitiKadetSahaja.length > 0) {
+                nextDateKey = dateKey;
+                nextActivity = aktivitiKadetSahaja[0]; 
+                break; // Berhenti mencari lepas jumpa yang pertama
+            }
+            // Jika hari tersebut cuma ada Takwim, loop ini akan terus mencari di hari berikutnya
+        }
+    }
+
+    // Jika jumpa aktiviti, paparkan pada kad
+    if (nextActivity) {
+        document.getElementById('upcoming-title').textContent = nextActivity.name;
+        document.getElementById('upcoming-venue').textContent = `📍 ${nextActivity.venue || 'Menunggu Makluman'}`;
+        document.getElementById('upcoming-time').textContent = `🕒 ${nextActivity.startTime} - ${nextActivity.endTime}`;
+        
+        const dateParts = nextDateKey.split('-');
+        const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+        const dateString = dateObj.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+        
+        document.getElementById('upcoming-date').textContent = `📅 ${dateString}`;
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// =======================================================
+// =====20. FUNGSI AGENDA MOBILE (KLIK KALENDAR) =====
+// =======================================================
+function showMobileAgenda(dateKey, targetDayElement) {
+    const agendaContainer = document.getElementById('mobile-agenda-container');
+    const agendaList = document.getElementById('agenda-event-list');
+    const agendaTitle = document.getElementById('agenda-date-title');
+    
+    // Hanya aktif jika dibuka di telefon pintar (lebar skrin < 768px)
+    if(!agendaContainer || window.innerWidth > 768) return; 
+    
+    // 1. Serlahkan hari yang ditekan (Highlight)
+    document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('is-selected'));
+    if (targetDayElement) targetDayElement.classList.add('is-selected');
+    
+    // 2. Format Tajuk Tarikh
+    const dateParts = dateKey.split('-');
+    const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+    agendaTitle.textContent = dateObj.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+    
+    // 3. Kosongkan senarai lama
+    agendaList.innerHTML = '';
+    
+    // 4. Masukkan senarai aktiviti baru
+    if(activities[dateKey] && activities[dateKey].length > 0) {
+        activities[dateKey].forEach((act, index) => {
+            const item = document.createElement('div');
+            
+            // Kitar semula CSS exco sedia ada untuk border tepi
+            const excoClass = act.isTakwim ? 'jenis-takwim' : (act.exco ? `exco-${act.exco.toLowerCase().replace(/\s+/g, '-')}` : 'exco-default');
+            
+            // Kita tambah gaya sikit supaya border dia tebal sebelah kiri
+            item.className = `agenda-item ${excoClass}`;
+            if (!act.isTakwim) {
+                item.style.borderLeft = `5px solid`; // Menggunakan warna dari excoClass
+                item.style.backgroundColor = "var(--card)"; // Paksa latar belakang putih
+            }
+            
+            const masaAtauSidang = act.isTakwim ? `👥 ${act.pic}` : `🕒 ${act.startTime} - ${act.endTime}`;
+            
+            item.innerHTML = `
+                <span class="agenda-item-title">${act.name}</span>
+                <span class="agenda-item-time">${masaAtauSidang}</span>
+                <span class="agenda-item-venue">📍 ${act.venue || 'Menunggu Makluman'}</span>
+            `;
+            
+            // Buka Modal Detail bila ditekan
+            item.addEventListener('click', () => {
+                openActivityDetailModal(act, index, dateKey);
+            });
+            
+            agendaList.appendChild(item);
+        });
+    } else {
+        agendaList.innerHTML = '<div class="empty-agenda">Tiada aktiviti dijadualkan pada hari ini.</div>';
+    }
+}
+
+// =======================================================
+// =====21. FUNGSI BINA CARTA ORGANISASI MED =====
+// =======================================================
+async function loadCartaOrganisasi() {
+    const container = document.getElementById('org-chart-container');
+    if (!container) return;
+
+    try {
+        // Tarik data MED dan data Kadet serentak (untuk curi gambar profil)
+        const [resMed, resKadet] = await Promise.all([
+            fetch(MED_SHEET_URL),
+            fetch(CADET_SHEET_URL)
+        ]);
+
+        if (!resMed.ok || !resKadet.ok) throw new Error("Gagal tarik data");
+
+        const dataMed = await resMed.text();
+        const dataKadet = await resKadet.text();
+
+        // 1. Bina 'Kamus Gambar' dari data Kadet menggunakan No Matriks sebagai kunci
+        const imageMap = {};
+        dataKadet.split('\n').forEach((row, index) => {
+            if (index === 0 || !row.trim()) return;
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            if (cols.length >= 6) {
+                const matriks = cols[1] ? cols[1].replace(/^"|"$/g, '').trim() : '';
+                let photoUrl = cols[5] ? cols[5].replace(/^"|"$/g, '').trim() : '';
+                
+                // Baiki link google drive
+                if (photoUrl && photoUrl.includes("drive.google.com")) {
+                    let fileId = "";
+                    if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
+                    else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
+                    if (fileId && fileId.length > 10) photoUrl = "https://lh3.googleusercontent.com/d/" + fileId;
+                }
+                
+                if (matriks) imageMap[matriks] = photoUrl;
+            }
+        });
+
+        // 2. Proses data MED & Kumpul ikut Penggal
+        const penggalGroup = {};
+
+        dataMed.split('\n').forEach((row, index) => {
+            if (index === 0 || !row.trim()) return;
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            const clean = (text) => text ? text.replace(/^"|"$/g, '').trim() : '';
+
+            // Lajur: A=Nama, B=Matriks, C=Sidang, D=Penggal, E=Exco
+            if (cols.length >= 5) {
+                const nama = clean(cols[0]);
+                const matriks = clean(cols[1]);
+                const sidang = clean(cols[2]).toUpperCase();
+                const penggal = clean(cols[3]);
+                const exco = clean(cols[4]);
+
+                let finalPhoto = imageMap[matriks] || "";
+                let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
+                if (!finalPhoto || finalPhoto === "-") finalPhoto = fallbackImg;
+
+                if (!penggalGroup[penggal]) penggalGroup[penggal] = [];
+                
+                penggalGroup[penggal].push({ nama, matriks, sidang, exco, finalPhoto, fallbackImg });
+            }
+        });
+
+        // 3. Bina HTML (Susun penggal terbaru di atas)
+        let finalHTML = '';
+        const sortedPenggal = Object.keys(penggalGroup).sort((a, b) => parseInt(b) - parseInt(a));
+
+        // Fungsi Warna Sidang
+        const getSidangColor = (s) => {
+            if(s === 'MEGANTARA') return 'background-color:#F5A623; color:#111; border-color:#F5A623;';
+            if(s === 'ADIKARA') return 'background-color:#004d40; color:#fff; border-color:#004d40;';
+            if(s === 'DIRGANTARA') return 'background-color:#01579b; color:#fff; border-color:#01579b;';
+            if(s === 'NAGASASRA') return 'background-color:#b71c1c; color:#fff; border-color:#b71c1c;';
+            return 'background-color:#e5e7eb; color:#333;';
+        };
+
+        // Pembuat Kad (Besarkan sikit untuk top management)
+        const generateOrgCard = (p, isTopTier) => `
+            <div class="cadet-card" style="${isTopTier ? 'width: 170px; border: 2px solid var(--accent); box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin-bottom: 10px;' : ''}">
+                <div class="cadet-photo-container">
+                    <img src="${p.finalPhoto}" alt="${p.nama}" class="cadet-photo" onerror="this.src='${p.fallbackImg}'">
+                </div>
+                <div class="cadet-info">
+                    <h3 class="cadet-name">${p.nama}</h3>
+                    <p class="cadet-matrix" style="color: ${isTopTier ? 'var(--accent)' : '#F5A623'}; font-weight: 800; font-size: 0.7rem; margin-bottom: 8px;">${p.exco.toUpperCase()}</p>
+                    <div class="cadet-badges">
+                        <span class="cadet-badge" style="${getSidangColor(p.sidang)}">${p.sidang}</span>
+                    </div>
+                </div>
+            </div>`;
+
+        // 4. Susun mengikut hierarki bagi setiap penggal
+        sortedPenggal.forEach(penggal => {
+            const ahli = penggalGroup[penggal];
+            
+            // Asingkan ikut tier
+            const tier1 = ahli.filter(a => a.exco.toLowerCase().includes('ketua eksekutif') && !a.exco.toLowerCase().includes('timbalan'));
+            const tier1_timbalan = ahli.filter(a => a.exco.toLowerCase().includes('timbalan ketua eksekutif'));
+            const tier2 = ahli.filter(a => a.exco.toLowerCase().includes('setiausaha') || a.exco.toLowerCase().includes('bendahari'));
+            
+            // Yang baki adalah Exco lain (Mengekalkan susunan asal dari sheet)
+            const tier3 = ahli.filter(a => !tier1.includes(a) && !tier1_timbalan.includes(a) && !tier2.includes(a));
+
+            finalHTML += `
+                <div class="penggal-section">
+                    <h2 class="penggal-title">PENGGAL ${penggal}</h2>
+                    
+                    <div class="org-tier tier-1">
+                        ${tier1.map(p => generateOrgCard(p, true)).join('')}
+                        ${tier1_timbalan.map(p => generateOrgCard(p, true)).join('')}
+                    </div>
+
+                    ${tier2.length > 0 ? `
+                    <div class="org-tier tier-2">
+                        ${tier2.map(p => generateOrgCard(p, false)).join('')}
+                    </div>
+                    ` : ''}
+
+                    ${tier3.length > 0 ? `
+                    <div class="org-tier tier-3">
+                        ${tier3.map(p => generateOrgCard(p, false)).join('')}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            // Letak pembahagi jika ada penggal seterusnya
+            if (penggal !== sortedPenggal[sortedPenggal.length - 1]) {
+                finalHTML += `<hr class="divider" style="width: 80%; margin: 60px auto;">`;
+            }
+        });
+
+        container.innerHTML = finalHTML;
+
+    } catch (error) {
+        console.error("Ralat Carta Organisasi:", error);
+        container.innerHTML = '<p style="color:red; text-align:center;">Gagal memuat turun data hierarki organisasi.</p>';
+    }
 }

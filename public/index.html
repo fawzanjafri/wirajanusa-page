@@ -16,14 +16,14 @@
 <header class="top-nav">
     <div class="nav-left">
         <div class="nav-logo">
-            <button id="themeToggle" class="nav-logo-btn">
-                <img src="assets/logo.png" alt="Toggle Dark Mode Logo">
-            </button>
+            <a href="index.html" class="nav-logo-btn">
+                <img src="assets/logo.png" alt="Logo WirajaNusa">
+            </a>
         </div>
     </div>
 
     <div class="nav-right">
-        <a href="#" class="nav-icon menu-trigger">
+        <a href="#" class="nav-icon menu-trigger" aria-label="Buka Menu Sisi">
             <span class="icon-box">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="3" y1="7" x2="21" y2="7"/>
@@ -67,7 +67,7 @@
             <ul class="submenu">
                 <li><a href="#" class="submenu-link">Visi & Misi</a></li>
                 <li><a href="#" class="submenu-link">Latar Belakang</a></li>
-                <li><a href="#" class="submenu-link">Carta Organisasi</a></li>
+                <li><a href="carta_organisasi.html" class="submenu-link">Carta Organisasi</a></li>
             </ul>
         </li>
 
@@ -113,6 +113,11 @@
     </div>
 
     <div class="video-controls">
+        <button id="pausePlayBtn" class="control-btn" aria-label="Pause atau Play Video">
+            <svg id="pauseIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+            <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        </button>
+        
         <button id="prevVideo" class="control-btn">&lt;</button>
         <button id="nextVideo" class="control-btn">&gt;</button>
     </div>
@@ -169,6 +174,22 @@
 
 </section>
 
+<section id="upcoming-event-section" class="section" style="padding-top: 40px; padding-bottom: 10px; display: none;">
+      <div class="upcoming-card">
+          <div class="upcoming-badge">
+              <span class="blink-dot"></span> AKTIVITI SETERUSNYA
+          </div>
+          <div class="upcoming-content">
+              <h3 id="upcoming-title">Memuatkan data...</h3>
+              <div class="upcoming-details-row">
+                  <span id="upcoming-date" class="upcoming-tag date-tag">📅 -</span>
+                  <span id="upcoming-time" class="upcoming-tag time-tag">🕒 -</span>
+                  <span id="upcoming-venue" class="upcoming-tag venue-tag">📍 -</span>
+              </div>
+          </div>
+      </div>
+  </section>
+
   <!-- ========== CALENDAR ========== -->
 <section id="kalendar-section" class="section calendar-section">
    <h2>Kalendar Aktiviti</h2>
@@ -178,6 +199,13 @@
         <div class="calendar-header">
             <button class="prev-month" id="prevMonthBtn">&lt;</button>
             <h3 id="currentMonth">November 2025</h3> <button class="next-month" id="nextMonthBtn">&gt;</button>
+        </div>
+
+        <div id="mobile-agenda-container" class="mobile-agenda" style="display: none;">
+            <h4 id="agenda-date-title">Pilih Tarikh</h4>
+            <div id="agenda-event-list">
+                <p class="empty-agenda">Sila pilih tarikh pada kalendar.</p>
+            </div>
         </div>
 
         <div class="calendar-weekdays">
@@ -201,6 +229,7 @@
         <h3>Buletin Utama WirajaNusa</h3>
         <iframe 
             class="youtube-embed main-youtube-embed" 
+            title="Video Buletin WirajaNusa"
             src="https://www.youtube.com/embed/videoseries?list=PLnle0pwwyhZL4xAOzpWBhiteOAEdMJi93"
             frameborder="0"  
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -299,4 +328,5 @@
  
 <script src="script_home.js"></script>
 </body>
+<div id="toast-container"></div>
 </html>
