@@ -719,6 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDirektoriPenuh();
     loadDirektoriPegawai();
     loadCartaOrganisasi();
+    if (typeof loadGallery === 'function') loadGallery();
 });
 
 // =======================================================
@@ -1500,7 +1501,7 @@ async function loadCartaOrganisasi() {
     }
 }
 
-// =======================================================
+/*// =======================================================
 // ===== 22. AUDIO BACKGROUND LOGIC =====
 // =======================================================
 const bgMusic = document.getElementById('bgMusic');
@@ -1543,7 +1544,7 @@ if (bgMusic && musicToggleBtn) {
     });
 }
 
-// =======================================================
+(// =======================================================
 // ===== 23. VISITOR COUNTER (LIVE API) =====
 // =======================================================
 const visitorSpan = document.getElementById('visitorCount');
@@ -1560,7 +1561,7 @@ if (visitorSpan) {
             // Nilai sandaran (fallback) jika API gagal
             visitorSpan.textContent = "1,042"; 
         });
-}
+}*/
 
 // =======================================================
 // ===== 24. DUAL COUNTDOWN TIMER =====
@@ -1578,7 +1579,7 @@ function initModulLuarCountdown() {
         return new Date(pA[0], pA[1]-1, pA[2]) - new Date(pB[0], pB[1]-1, pB[2]);
     });
 
-    let foundModul = null;
+    let foundModules = [];
     let foundDateKey = null;
 
     for (const dateKey of sortedDates) {
@@ -1587,19 +1588,18 @@ function initModulLuarCountdown() {
         actDate.setHours(0, 0, 0, 0);
 
         if (actDate.getTime() > today.getTime()) {
-            // Carian Pintar Modul Luar: 
-            // 1. Mesti Takwim. 
-            // 2. Venue TIDAK mengandungi perkataan "INTAN".
-            foundModul = activities[dateKey].find(act => 
+            // Guna filter() untuk tangkap SEMUA modul luar pada hari yang sama
+            const modulsOnDate = activities[dateKey].filter(act => 
                 act.isTakwim && 
                 act.venue && 
                 act.venue !== "-" && 
                 !act.venue.toUpperCase().includes("INTAN")
             );
 
-            if (foundModul) {
+            if (modulsOnDate.length > 0) {
+                foundModules = modulsOnDate;
                 foundDateKey = actDate.getTime();
-                break;
+                break; // Berhenti mencari lepas jumpa tarikh terdekat
             }
         }
     }
@@ -1608,9 +1608,14 @@ function initModulLuarCountdown() {
     const timerEl = document.getElementById('timer-modul');
     const successEl = document.getElementById('modul-luar-success');
 
-    if (foundModul && titleEl) {
+    if (foundModules.length > 0 && titleEl) {
         modulLuarTargetDate = foundDateKey;
-        titleEl.textContent = `Menuju: ${foundModul.name}`;
+        
+        // Gabungkan nama semua modul yang dijumpai (cth: Modul A & Modul B)
+        // Guna 'Set' untuk buang nama yang duplicate (kalau ada)
+        const uniqueNames = [...new Set(foundModules.map(m => m.name))];
+        titleEl.textContent = `Menuju: ${uniqueNames.join(" & ")}`;
+        
         timerEl.style.display = 'flex';
         successEl.style.display = 'none';
     } else if (titleEl) {
@@ -1648,3 +1653,42 @@ function updateCountdowns() {
 
 // Mulakan jam!
 countdownInterval = setInterval(updateCountdowns, 1000);
+
+// =======================================================
+// ===== 25. FUNGSI GALERI GAMBAR GOOGLE DRIVE =====
+// =======================================================
+
+// TAMPAL WEB APP URL DARI LANGKAH 2 DI SINI
+const GALLERY_API_URL = 'https://script.google.com/macros/s/AKfycbwfwycOp7uzAQXBb5CLhuyCVOHpG53-GsYk93iJEOHMLxgU-JpxzmjxnkCzZpqNufaBlg/exec';
+
+async function loadGallery() {
+    const grid = document.getElementById('gallery-grid');
+    if (!grid) return;
+
+    try {
+        const response = await fetch(GALLERY_API_URL);
+        const images = await response.json();
+
+        if (images.length === 0) {
+            grid.innerHTML = '<p style="text-align:center; width:100%;">Tiada gambar dijumpai dalam folder Drive.</p>';
+            return;
+        }
+
+        // Jana HTML untuk setiap gambar (Guna Thumbnail API supaya kebal sekatan browser)
+        grid.innerHTML = images.map(img => `
+            <div class="gallery-item">
+                <img src="https://drive.google.com/thumbnail?id=${img.id}&sz=w800" 
+                     alt="${img.name}" 
+                     loading="lazy"
+                     onclick="window.open('https://drive.google.com/file/d/${img.id}/view', '_blank')">
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error("Ralat Galeri:", error);
+        grid.innerHTML = '<p style="color:red; text-align:center; width:100%;">Gagal memuat turun galeri gambar.</p>';
+    }
+}
+
+// Tambah loadGallery() ke dalam DOMContentLoaded initialization anda
+// (Cari bahagian document.addEventListener('DOMContentLoaded', ...))
