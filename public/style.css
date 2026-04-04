@@ -717,7 +717,7 @@ body {
     font-size: 1.5rem;
 }
 
-.cal-btn {
+/*.cal-btn {
     background: var(--green);
     color: white;
     border: none;
@@ -731,7 +731,7 @@ body {
 
 .cal-btn:hover {
     background: var(--accent);
-}
+}*/
 
 .calendar-weekdays {
     display: grid;
@@ -746,12 +746,13 @@ body {
 
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 1px;
     background: var(--shadow-color);
     border: 1px solid var(--shadow-color);
     /* Pastikan bahagian ini: */
     min-height: 400px; /* Atau apa-apa nilai yang anda rasa sesuai */
+    width: 100%
 }
 
 .cal-day {
@@ -778,7 +779,7 @@ body {
     border: 1px solid #f0f4f0;
 }
 
-.cal-add-btn {
+/*.cal-add-btn {
     background: var(--light-green);
     color: var(--green);
     border: none;
@@ -796,7 +797,7 @@ body {
     opacity: 1;
     background: var(--green);
     color: white;
-}
+}*/
 
 
 
