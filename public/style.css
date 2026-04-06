@@ -1717,7 +1717,7 @@ body {
    ======================================================= */
 .system-cta-btn {
     display: block; /* Paksa butang jadi block supaya boleh set width 100% */
-    width: 100%; /* Panjang penuh ikut saiz container kalendar */
+    justify-content: center;
     background: #F5A623 ;
     color: #111827 !important; 
     text-align: center;
@@ -1975,7 +1975,7 @@ body {
 .upcoming-content {
     background: var(--card);
     border-radius: 14px;
-    padding: 25px 30px;
+    padding: 35px 30px;
     text-align: center;
 }
 
