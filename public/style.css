@@ -196,7 +196,7 @@ body{
     /* ===== (Video Background) ===== */
     .hero-container {
       position: relative;
-      height: 90vh;
+      height: 80vh;
       overflow: hidden;
       background-color: #000;
     }
@@ -1718,8 +1718,8 @@ body {
 .system-cta-btn {
     display: block; /* Paksa butang jadi block supaya boleh set width 100% */
     width: 100%; /* Panjang penuh ikut saiz container kalendar */
-    background: #111827; /* Hitam Korporat PTD */
-    color: #F5A623 !important; /* Teks Kuning Emas Wiraja Nusa */
+    background: #F5A623 ;
+    color: #111827 !important; 
     text-align: center;
     padding: 16px 20px;
     font-size: 1.15rem;
@@ -1727,7 +1727,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 1px;
     border-radius: 12px;
-    margin-bottom: 25px; /* Jarak nafas antara butang dan kalendar */
+    margin-bottom: auto; 
     text-decoration: none;
     box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
     border: 2px solid #111827;
