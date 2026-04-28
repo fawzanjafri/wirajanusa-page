@@ -1566,7 +1566,7 @@ if (visitorSpan) {
 // =======================================================
 // ===== 24. DUAL COUNTDOWN TIMER =====
 // =======================================================
-const dpaTargetDate = new Date('2026-07-31T23:59:59').getTime(); // Target DPA Tamat
+const dpaTargetDate = new Date('2026-07-26T23:59:59').getTime(); // Target DPA Tamat
 let modulLuarTargetDate = null;
 let countdownInterval;
 
@@ -1575,30 +1575,28 @@ function initModulLuarCountdown() {
     today.setHours(0, 0, 0, 0);
 
     const sortedDates = Object.keys(activities).sort((a, b) => {
-        const pA = a.split('-'); const pB = b.split('-');
-        return new Date(pA[0], pA[1]-1, pA[2]) - new Date(pB[0], pB[1]-1, pB[2]);
+        return new Date(a) - new Date(b);
     });
+
+    console.log("Semua Tarikh Dijumpai:", sortedDates); // DEBUG
 
     let foundModules = [];
     let foundDateKey = null;
 
     for (const dateKey of sortedDates) {
-        const parts = dateKey.split('-');
-        const actDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        const actDate = new Date(dateKey);
         actDate.setHours(0, 0, 0, 0);
 
-        if (actDate.getTime() > today.getTime()) {
-            // Guna filter() untuk tangkap SEMUA modul luar pada hari yang sama
-            const modulsOnDate = activities[dateKey].filter(act => 
-                act.isTakwim && 
-                act.venue && 
-                act.venue !== "-" && 
-                !act.venue.toUpperCase().includes("INTAN")
-            );
+        if (actDate.getTime() >= today.getTime()) {
+            // LOGIK BARU: Tapis HANYA jika lajur Peringkat mengandungi "Modul Luar"
+            const modulsOnDate = activities[dateKey].filter(act => {
+                return act.level && act.level.toLowerCase().includes("modul luar");
+            });
 
             if (modulsOnDate.length > 0) {
                 foundModules = modulsOnDate;
                 foundDateKey = actDate.getTime();
+                console.log("Modul Luar Terdekat Dijumpai:", foundModules); // DEBUG
                 break; // Berhenti mencari lepas jumpa tarikh terdekat
             }
         }
@@ -1611,19 +1609,18 @@ function initModulLuarCountdown() {
     if (foundModules.length > 0 && titleEl) {
         modulLuarTargetDate = foundDateKey;
         
-        // Gabungkan nama semua modul yang dijumpai (cth: Modul A & Modul B)
-        // Guna 'Set' untuk buang nama yang duplicate (kalau ada)
+        // Gabungkan nama semua modul yang dijumpai dan buang duplicate
         const uniqueNames = [...new Set(foundModules.map(m => m.name))];
         titleEl.textContent = `Menuju: ${uniqueNames.join(" & ")}`;
         
-        timerEl.style.display = 'flex';
-        successEl.style.display = 'none';
+        if (timerEl) timerEl.style.display = 'flex';
+        if (successEl) successEl.style.display = 'none';
     } else if (titleEl) {
         // Jika tiada lagi modul luar
         modulLuarTargetDate = null;
         titleEl.textContent = "Modul Luar";
-        timerEl.style.display = 'none';
-        successEl.style.display = 'block';
+        if (timerEl) timerEl.style.display = 'none';
+        if (successEl) successEl.style.display = 'block';
     }
 }
 
