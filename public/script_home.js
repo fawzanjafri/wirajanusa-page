@@ -8,7 +8,7 @@ const CADET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7
 const PEGAWAI_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=966069051&single=true&output=csv'; 
 const TAKWIM_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=218188007&single=true&output=csv';
 const MED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=1312565253&single=true&output=csv';
-const GALLERY_API_URL = 'https://script.google.com/macros/s/AKfycbwfwycOp7uzAQXBb5CLhuyCVOHpG53-GsYk93iJEOHMLxgU-JpxzmjxnkCzZpqNufaBlg/exec';
+const GALLERY_API_URL = 'https://script.google.com/macros/s/AKfycbwpu-mVfC72xS2QGN5KzQOYtpWYp4g0n4dTYTF1tmF6eCHN6EcJyjAUjaVtiONLxPXApw/exec';
 
 let activities = {}; 
 let currentActiveDayElement = null; 
@@ -608,12 +608,12 @@ submenuToggles.forEach(toggle => {
     });
 });
 
-// =======================================================
+/// =======================================================
 // ===== 12. VIDEO SLIDESHOW LOGIC (PREMIUM UPGRADE) =====
 // =======================================================
 const videoSources = [
-  "assets/videos/hero1.mp4",
-  "assets/videos/hero2.mp4"
+    "assets/videos/hero1.mp4",
+    "assets/videos/WIRAJA NUSA.mp4"
 ];
 
 const videos = document.querySelectorAll(".hero-video");
@@ -624,16 +624,22 @@ const playIcon = document.getElementById("playIcon");
 const pauseIcon = document.getElementById("pauseIcon");
 
 let currentVideoIndex = 0;
-let slideInterval; 
-let isPlaying = true; // Status sama ada slideshow sedang berjalan
+let isPlaying = true; 
 
 if (videos.length > 0) {
     
-    // Set sumber video tetapi JANGAN mainkan semuanya serentak
     videos.forEach((vid, index) => {
         if (videoSources[index]) {
             vid.src = videoSources[index];
             vid.muted = true; 
+            vid.loop = false; // PENTING: Matikan loop supaya video boleh 'tamat'
+            
+            // MAGIK BARU: Dengar bila video habis dimainkan, baru tukar slide
+            vid.addEventListener('ended', () => {
+                if (isPlaying) {
+                    nextSlide();
+                }
+            });
         }
     });
 
@@ -645,15 +651,15 @@ if (videos.length > 0) {
         videos.forEach((v, i) => {
             v.classList.remove("active");
             if (i !== index) {
-                // Berhentikan video yang tidak aktif selepas animasi fade out tamat (1.5 saat)
-                // Ini sangat menjimatkan RAM & Bateri pengguna!
                 setTimeout(() => v.pause(), 1500); 
             }
         });
         
         videos[index].classList.add("active");
         
-        // Hanya mainkan jika status keseluruhan adalah 'Playing'
+        // Mula dari saat ke-0 bila video baru dibuka
+        videos[index].currentTime = 0; 
+        
         if (isPlaying) {
             videos[index].play().catch(e => console.log(e));
         }
@@ -662,42 +668,24 @@ if (videos.length > 0) {
     function nextSlide() {
         currentVideoIndex = (currentVideoIndex + 1) % videos.length;
         showVideo(currentVideoIndex);
-        if(isPlaying) resetTimer();
     }
 
     function prevSlide() {
         currentVideoIndex = (currentVideoIndex - 1 + videos.length) % videos.length;
         showVideo(currentVideoIndex);
-        if(isPlaying) resetTimer();
-    }
-
-    function startTimer() {
-        slideInterval = setInterval(() => {
-            currentVideoIndex = (currentVideoIndex + 1) % videos.length;
-            showVideo(currentVideoIndex);
-        }, 8000); 
-    }
-
-    function resetTimer() {
-        clearInterval(slideInterval);
-        startTimer();
     }
 
     // --- Logik Butang Pause/Play ---
     if (pausePlayBtn) {
         pausePlayBtn.addEventListener("click", () => {
-            isPlaying = !isPlaying; // Tukar status
+            isPlaying = !isPlaying; 
             
             if (isPlaying) {
-                // Jika ditekan Play
                 videos[currentVideoIndex].play();
-                startTimer();
                 playIcon.style.display = "none";
                 pauseIcon.style.display = "block";
             } else {
-                // Jika ditekan Pause
                 videos[currentVideoIndex].pause();
-                clearInterval(slideInterval); // Hentikan pertukaran automatik
                 playIcon.style.display = "block";
                 pauseIcon.style.display = "none";
             }
@@ -707,7 +695,24 @@ if (videos.length > 0) {
     if (nextVideoBtn) nextVideoBtn.addEventListener("click", nextSlide);
     if (prevVideoBtn) prevVideoBtn.addEventListener("click", prevSlide);
 
-    startTimer();
+    // ==========================================
+    // MAGIK UNTUK UNMUTE VIDEO BILA USER KLIK
+    // ==========================================
+    let isVideoMuted = true;
+
+    const unmuteVideoOnInteraction = () => {
+        if (isVideoMuted) {
+            videos.forEach(v => {
+                v.muted = false; 
+            });
+            isVideoMuted = false;
+        }
+        document.body.removeEventListener('click', unmuteVideoOnInteraction);
+        document.body.removeEventListener('touchstart', unmuteVideoOnInteraction);
+    };
+
+    document.body.addEventListener('click', unmuteVideoOnInteraction);
+    document.body.addEventListener('touchstart', unmuteVideoOnInteraction);
 }
 
 

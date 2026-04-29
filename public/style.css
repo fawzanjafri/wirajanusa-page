@@ -512,6 +512,34 @@ body {
   filter: drop-shadow(0 6px 12px rgba(255,225,130,0.65));
 }
 
+.sidang-poster-center {
+    display: block;
+    /* Guna width: auto supaya dia tak paksa tarik gambar kalau gambar tu asal kecil */
+    width: auto;
+    /* Jangan lebih 95% lebar skrin (untuk phone) */
+    max-width: 95%; 
+    /* Rahsia: Jangan lebih 75% ketinggian skrin (supaya portrait tak terlalu panjang) */
+    max-height: 75vh; 
+    
+    height: auto;
+    margin: 30px auto;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    
+    /* Memastikan gambar tidak "penyet" dan kekal ratio asal */
+    object-fit: contain; 
+    transition: transform 0.3s ease;
+}
+
+@media (min-width: 1024px) {
+    .sidang-poster-center {
+        /* Landscape boleh jadi lebih lebar kat laptop */
+        max-width: 800px; 
+        /* Portrait tetap dikawal supaya tak penuh satu skrin */
+        max-height: 80vh; 
+    }
+}
+
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 780px) {
   .sidang-row {
@@ -609,11 +637,13 @@ body {
 
 /* ===== VIDEO BULLETIN GRID STYLES (VERSI KEMASKINI) ===== */
 .main-video-box {
-    /* Guna gaya kad sedia ada supaya konsisten */
+    max-width: 600px;
     border: 1px solid var(--light-green); 
     background: var(--card); 
+    padding: 20px;
     border-radius: 14px;
     box-shadow: 0 8px 20px var(--shadow-color);
+    margin: 0 auto;
 }
 
 .main-video-box h3 {
@@ -626,21 +656,30 @@ body {
     display: grid;
     gap: 30px; /* Jarak antara kotak video */
     /* 2 kotak per baris untuk skrin besar, responsif ke 1 kotak */
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     margin-top: 30px;
     margin: 0 auto;
+    gap: 20px;
+    padding: 20px;           /* Ruang bernafas di tepi skrin */
+    width: 100%;
+    max-width: 1200px;       /* Hadkan lebar kat laptop supaya tak terlalu kembang */
+    margin: 0 auto;          /* Paksa container duduk tengah skrin */
+    box-sizing: border-box;  /* Pastikan padding tak tolak lebar container ke luar */
 }
 
 .video-box {
+    max-width: 400px;
     background: var(--card);
     padding: 20px;
     border-radius: 14px;
     box-shadow: 0 8px 20px var(--shadow-color);
     /* Penting: Tetapkan kedudukan relatif untuk flexibiliti */
-    position: relative; 
+    display: flex;
+    flex-direction: column;
 }
 
 .video-box h3 {
+    font-size: 1rem; 
     margin: 0 0 15px 0;
     font-weight: 700;
     color: var(--green);
