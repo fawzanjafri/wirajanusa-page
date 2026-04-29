@@ -609,11 +609,6 @@ body {
 
 /* ===== VIDEO BULLETIN GRID STYLES (VERSI KEMASKINI) ===== */
 .main-video-box {
-    /* Hadkan lebar untuk paparan desktop yang lebih baik */
-    max-width: 800px; 
-    margin: 0 auto; /* Tengah-kan video */
-    padding: 25px;
-    
     /* Guna gaya kad sedia ada supaya konsisten */
     border: 1px solid var(--light-green); 
     background: var(--card); 
@@ -622,7 +617,7 @@ body {
 }
 
 .main-video-box h3 {
-    font-size: 1.6rem; 
+    font-size: 1.2rem; 
     text-align: center;
     color: var(--text-color); /* Guna warna teks utama */
 }
@@ -631,8 +626,9 @@ body {
     display: grid;
     gap: 30px; /* Jarak antara kotak video */
     /* 2 kotak per baris untuk skrin besar, responsif ke 1 kotak */
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
     margin-top: 30px;
+    margin: 0 auto;
 }
 
 .video-box {
@@ -2088,7 +2084,7 @@ body {
         padding: 12px 15px; 
     }
     
-    /* Ruang controls (Butang + Tarikh) */
+    /* Ruang controls (Butang video-grid video-box Tarikh) */
     .calendar-header > div:first-child {
         display: flex !important;
         flex-direction: row !important; /* Wajib sebaris mendatar */

@@ -8,6 +8,7 @@ const CADET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7
 const PEGAWAI_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=966069051&single=true&output=csv'; 
 const TAKWIM_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=218188007&single=true&output=csv';
 const MED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTaXbK7mx0na3uTO8jA_WtQ9v8qwJYBTPgmXPd5gaA0uKMhnMsmyZToq41INGBCooYak5SlbyK9Z4Px/pub?gid=1312565253&single=true&output=csv';
+const GALLERY_API_URL = 'https://script.google.com/macros/s/AKfycbwfwycOp7uzAQXBb5CLhuyCVOHpG53-GsYk93iJEOHMLxgU-JpxzmjxnkCzZpqNufaBlg/exec';
 
 let activities = {}; 
 let currentActiveDayElement = null; 
@@ -1655,8 +1656,6 @@ countdownInterval = setInterval(updateCountdowns, 1000);
 // ===== 25. FUNGSI GALERI GAMBAR GOOGLE DRIVE =====
 // =======================================================
 
-// TAMPAL WEB APP URL DARI LANGKAH 2 DI SINI
-const GALLERY_API_URL = 'https://script.google.com/macros/s/AKfycbwfwycOp7uzAQXBb5CLhuyCVOHpG53-GsYk93iJEOHMLxgU-JpxzmjxnkCzZpqNufaBlg/exec';
 
 async function loadGallery() {
     const grid = document.getElementById('gallery-grid');
