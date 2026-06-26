@@ -871,9 +871,12 @@ async function loadCadetProfiles() {
                 const photoUrlBaru = cols.length > 6 ? clean(cols[6]) : "";             
 
                 if (sidang === currentSidang) {
-                    // Logik penentuan status kadet aktif / dismissed
-                    const hasNewPhoto = (currentSidang === "MEGANTARA" && photoUrlBaru && photoUrlBaru !== "-");
-                    const isDismissed = (currentSidang === "MEGANTARA" && !hasNewPhoto);
+                // Logik penentuan status kadet aktif / dismissed (Menyokong MEGANTARA atau NAGASASRA)
+                const hasNewPhoto = ((currentSidang === "MEGANTARA" || currentSidang === "NAGASASRA") && photoUrlBaru && photoUrlBaru !== "-");
+                const isDismissed = ((currentSidang === "MEGANTARA" || currentSidang === "NAGASASRA") && !hasNewPhoto);
+                
+                 // ... sisa kode logika kau yang lain ...
+}
 
                     // Sediakan link asal mengikut status gambar baru
                     let frontRaw = hasNewPhoto ? photoUrlBaru : photoUrl;
