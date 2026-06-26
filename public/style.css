@@ -2390,3 +2390,96 @@ body {
         gap: 10px;
     }
 }
+
+.lightbox-overlay {
+    display: none; 
+    position: fixed;
+    z-index: 5000; /* Letak atas daripada segala elemen nav & modal lain */
+    padding-top: 60px;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(11, 26, 22, 0.9); /* Padan dengan rona --text-color gelap kau */
+    backdrop-filter: blur(8px);
+    transition: opacity 0.3s ease;
+}
+
+/* Aktifkan paparan melalui class JS */
+.lightbox-overlay.is-map,
+.lightbox-overlay.is-active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Butang Tutup (Pangkah) */
+.lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 35px;
+    color: #ffffff;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    cursor: pointer;
+    z-index: 5001;
+}
+
+.lightbox-close:hover,
+.lightbox-close:focus {
+    color: #F5A623; /* Tukar ke warna gold aksen reka bentuk kau */
+    text-decoration: none;
+    transform: scale(1.1);
+}
+
+/* Gambar Di Dalam Pop-up */
+.lightbox-content {
+    margin: auto;
+    display: block;
+    max-width: 85%;
+    max-height: 75vh;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    object-fit: contain;
+    animation: zoomIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Tajuk / Kapsyen Gambar */
+#lightbox-caption {
+    margin: auto;
+    display: block;
+    width: 80%;
+    max-width: 700px;
+    text-align: center;
+    color: #e5e5e5;
+    padding: 15px 0;
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* Animasi Zoom */
+@keyframes zoomIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Kekemasan Responsif untuk Skrin Kecil Mobile */
+@media only screen and (max-width: 768px) {
+    .lightbox-content {
+        max-width: 95%;
+        max-height: 65vh;
+    }
+    .lightbox-close {
+        top: 15px;
+        right: 25px;
+        font-size: 35px;
+    }
+    #lightbox-caption {
+        font-size: 0.9rem;
+        padding: 10px 10px;
+    }
+}

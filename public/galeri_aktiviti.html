@@ -24,6 +24,15 @@
         </div>
     </main>
 
+    <div id="gallery-modal" class="lightbox-overlay" onclick="closeLightbox()">
+        <span class="lightbox-close">&times;</span>
+        <img class="lightbox-content" id="lightbox-img" alt="Paparan Besar">
+    </div>
+
     <script src="script_home.js"></script>
+    <script>
+        // Panggil fungsi sebaik sahaja halaman dimuatkan
+        document.addEventListener("DOMContentLoaded", loadGallery);
+    </script>
 </body>
 </html>

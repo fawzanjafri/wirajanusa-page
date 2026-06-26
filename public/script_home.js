@@ -739,8 +739,46 @@ async function loadCadetProfiles() {
     const currentSidang = gridContainer.getAttribute('data-sidang').toUpperCase();
     console.log("Memuat turun profil & pegawai untuk sidang:", currentSidang);
 
+    // --- SUNTIKAN CSS UNTUK FLIP CARD & BLUR ---
+    if (!document.getElementById('flip-card-styles')) {
+        const style = document.createElement('style');
+        style.id = 'flip-card-styles';
+        style.innerHTML = `
+            .flip-container {
+                perspective: 1000px;
+                cursor: pointer;
+            }
+            .flipper {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+                transform-style: preserve-3d;
+            }
+            .flip-container.is-flipped .flipper {
+                transform: rotateY(180deg);
+            }
+            .flipper-front, .flipper-back {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                backface-visibility: hidden;
+                border-radius: inherit;
+            }
+            .flipper-back {
+                transform: rotateY(180deg);
+            }
+            .dismissed-blur {
+                filter: blur(5px) grayscale(40%);
+                pointer-events: none;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     try {
-        // Tarik data Pegawai dan Kadet serentak
         const [resPegawai, resKadet] = await Promise.all([
             fetch(PEGAWAI_SHEET_URL),
             fetch(CADET_SHEET_URL)
@@ -750,6 +788,21 @@ async function loadCadetProfiles() {
         
         const dataPegawai = await resPegawai.text();
         const dataKadet = await resKadet.text();
+
+        // Fungsi bantuan (Helper) untuk proses URL Gambar (Potong Domain & GDrive)
+        const processUrl = (url) => {
+            let res = url;
+            if (res && res.includes("wirajanusa-page.pages.dev/")) {
+                res = res.split("wirajanusa-page.pages.dev/")[1];
+            }
+            if (res && res.includes("drive.google.com")) {
+                let fileId = "";
+                if (res.includes("id=")) fileId = res.split("id=")[1].split("&")[0];
+                else if (res.includes("/d/")) fileId = res.split("/d/")[1].split("/")[0];
+                if (fileId && fileId.length > 10) res = "https://lh3.googleusercontent.com/d/" + fileId;
+            }
+            return res;
+        };
 
         // --- 1. PROSES DATA PEGAWAI PENYELARAS ---
         let pegawaiSidang = [];
@@ -767,19 +820,12 @@ async function loadCadetProfiles() {
                 const photoUrl = cols.length > 3 ? clean(cols[3]) : "";
 
                 if (sidang === currentSidang) {
-                    let finalPhoto = photoUrl;
-                    if (photoUrl && photoUrl.includes("drive.google.com")) {
-                        let fileId = "";
-                        if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
-                        else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
-                        if (fileId && fileId.length > 10) finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
-                    }
-
+                    // Gunakan fungsi processUrl secara konsisten
+                    let finalFrontPhoto = processUrl(photoUrl);
                     let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
-                    if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") finalPhoto = fallbackImg;
+                    if (!finalFrontPhoto || finalFrontPhoto === "" || finalFrontPhoto === "-") finalFrontPhoto = fallbackImg;
 
-                    // --- SISTEM PENGESAN PANGKAT PEGAWAI ---
-                    let pRank = 99; // Lalai
+                    let pRank = 99;
                     const j = jawatan.toUpperCase();
                     if (j.includes("KETUA UNIT")) pRank = 1;
                     else if (j.includes("KETUA PENOLONG PENGARAH KANAN")) pRank = 2;
@@ -787,17 +833,17 @@ async function loadCadetProfiles() {
                     else if (j.includes("PENOLONG PENGARAH KANAN")) pRank = 4;
                     else if (j.includes("PENOLONG PENGARAH")) pRank = 5;
 
-                    pegawaiSidang.push({ nama, jawatan, finalPhoto, fallbackImg, isPegawai: true, pRank });
+                    // Pastikan semua properti yang dipanggil oleh generateCardHTML wujud
+                    pegawaiSidang.push({ 
+                        nama, jawatan, finalFrontPhoto, fallbackImg, 
+                        isPegawai: true, pRank, hasNewPhoto: false, isDismissed: false 
+                    });
                 }
             }
         });
 
-        // --- SUSUNAN PEGAWAI (KEDUA KIRI, PERTAMA TENGAH, KETIGA KANAN) ---
-        // Mula-mula, susun ikut pangkat (1, 2, 3...)
         pegawaiSidang.sort((a, b) => a.pRank - b.pRank);
-        
         if (pegawaiSidang.length >= 3) {
-            // Jika 3 pegawai atau lebih: Kedua Kiri, Pertama Tengah, Ketiga Kanan
             const first = pegawaiSidang[0];
             const second = pegawaiSidang[1];
             const third = pegawaiSidang[2];
@@ -822,20 +868,32 @@ async function loadCadetProfiles() {
                 const jawatan = clean(cols[3]).toUpperCase(); 
                 const jantina = clean(cols[4]).toUpperCase(); 
                 const photoUrl = clean(cols[5]);              
+                const photoUrlBaru = cols.length > 6 ? clean(cols[6]) : "";             
 
                 if (sidang === currentSidang) {
-                    let finalPhoto = photoUrl;
-                    if (photoUrl && photoUrl.includes("drive.google.com")) {
-                        let fileId = "";
-                        if (photoUrl.includes("id=")) fileId = photoUrl.split("id=")[1].split("&")[0];
-                        else if (photoUrl.includes("/d/")) fileId = photoUrl.split("/d/")[1].split("/")[0];
-                        if (fileId && fileId.length > 10) finalPhoto = "https://lh3.googleusercontent.com/d/" + fileId;
-                    }
+                    // Logik penentuan status kadet aktif / dismissed
+                    const hasNewPhoto = (currentSidang === "MEGANTARA" && photoUrlBaru && photoUrlBaru !== "-");
+                    const isDismissed = (currentSidang === "MEGANTARA" && !hasNewPhoto);
 
+                    // Sediakan link asal mengikut status gambar baru
+                    let frontRaw = hasNewPhoto ? photoUrlBaru : photoUrl;
+                    let backRaw = photoUrl; 
+
+                    // Tukar link Drive ke format direct stream via helper
+                    let finalFrontPhoto = processUrl(frontRaw);
+                    let finalBackPhoto = processUrl(backRaw);
+                    
                     let fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=111827&color=F5A623&size=300&bold=true`;
-                    if (!finalPhoto || finalPhoto === "" || finalPhoto === "-") finalPhoto = fallbackImg;
+                    
+                    if (!finalFrontPhoto || finalFrontPhoto === "" || finalFrontPhoto === "-") finalFrontPhoto = fallbackImg;
+                    if (!finalBackPhoto || finalBackPhoto === "" || finalBackPhoto === "-") finalBackPhoto = fallbackImg;
 
-                    const cadetObj = { nama, matriks, jawatan, jantina, finalPhoto, fallbackImg, isPegawai: false };
+                    // Padankan struktur objek dengan keperluan generateCardHTML
+                    const cadetObj = { 
+                        nama, matriks, jawatan, jantina, 
+                        finalFrontPhoto, finalBackPhoto, fallbackImg, 
+                        isPegawai: false, hasNewPhoto, isDismissed 
+                    };
 
                     let rank = 99; 
                     if (jawatan === "KETUA SIDANG") rank = 1;
@@ -852,7 +910,6 @@ async function loadCadetProfiles() {
             }
         });
 
-        // Susun Jawatankuasa (Timbalan Kiri, Ketua Tengah, Bendahari Kanan)
         let ketuas = jawatankuasa.filter(k => k.rank === 1);
         let timbalans = jawatankuasa.filter(k => k.rank === 2);
         let bendaharis = jawatankuasa.filter(k => k.rank === 3);
@@ -860,13 +917,7 @@ async function loadCadetProfiles() {
 
         // --- 3. JANA HTML (GAYA DINAMIK) ---
         const generateCardHTML = (c) => {
-            // JIKA PEGAWAI: Kosongkan ruang Matriks/Jawatan (Tinggal nama & gambar sahaja)
-            // JIKA KADET: Paparkan No Matriks
-            const matrixOrJawatan = c.isPegawai 
-                ? '' // Kosongkan
-                : '<p class="cadet-matrix">' + c.matriks + '</p>';
-                
-            // Pegawai tak perlu lencana jawatan/jantina kecil di bawah
+            const matrixOrJawatan = c.isPegawai ? '' : '<p class="cadet-matrix">' + c.matriks + '</p>';
             const badges = c.isPegawai ? '' : `
                 <div class="cadet-badges">
                     ${c.jawatan && c.jawatan !== "-" ? '<span class="cadet-badge jawatan-badge">' + c.jawatan + '</span>' : ''}
@@ -874,11 +925,35 @@ async function loadCadetProfiles() {
                 </div>
             `;
 
+            let photoSection = '';
+
+            if (c.hasNewPhoto) {
+                // KADET AKTIF: Boleh Flip
+                photoSection = `
+                    <div class="cadet-photo-container flip-container" onclick="this.classList.toggle('is-flipped')" title="Klik untuk lihat gambar lama">
+                        <div class="flipper">
+                            <div class="flipper-front">
+                                <img src="${c.finalFrontPhoto}" alt="${c.nama}" class="cadet-photo" onerror="this.src='${c.fallbackImg}'">
+                            </div>
+                            <div class="flipper-back">
+                                <img src="${c.finalBackPhoto}" alt="${c.nama} (Lama)" class="cadet-photo" onerror="this.src='${c.fallbackImg}'">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // DISMISS ATAU PEGAWAI: Gambar biasa (Blur kalau Dismiss)
+                const blurClass = c.isDismissed ? 'dismissed-blur' : '';
+                photoSection = `
+                    <div class="cadet-photo-container">
+                        <img src="${c.finalFrontPhoto}" alt="${c.nama}" class="cadet-photo ${blurClass}" onerror="this.src='${c.fallbackImg}'">
+                    </div>
+                `;
+            }
+
             return `
                 <div class="cadet-card" ${c.isPegawai ? 'style="border: 2px solid #F5A623; box-shadow: 0 4px 15px rgba(245, 166, 35, 0.15); margin-bottom: 10px;"' : ''}>
-                    <div class="cadet-photo-container">
-                        <img src="${c.finalPhoto}" alt="${c.nama}" class="cadet-photo" onerror="this.src='${c.fallbackImg}'">
-                    </div>
+                    ${photoSection}
                     <div class="cadet-info" style="${c.isPegawai ? 'justify-content: center;' : ''}">
                         <h3 class="cadet-name" style="${c.isPegawai ? 'font-size: 0.9rem; margin-bottom: 0;' : ''}">${c.nama}</h3>
                         ${matrixOrJawatan}
@@ -889,41 +964,24 @@ async function loadCadetProfiles() {
 
         let finalHTML = '';
 
-        // TAMPAL SEKSYEN PEGAWAI (PALING ATAS)
         if (pegawaiSidang.length > 0) {
             finalHTML += `
                 <h3 class="section-sub-title" style="color: #F5A623; font-weight: 800; font-size: 1.2rem; margin-bottom: 15px; text-transform: uppercase;">PEGAWAI PENYELARAS</h3>
-                <div class="jawatankuasa-section">
-                    <div class="cadet-grid-flex">
-                        ${pegawaiSidang.map(generateCardHTML).join('')}
-                    </div>
-                </div>
+                <div class="jawatankuasa-section"><div class="cadet-grid-flex">${pegawaiSidang.map(generateCardHTML).join('')}</div></div>
                 <hr class="divider">
             `;
         }
 
-        // TAMPAL SEKSYEN JAWATANKUASA
         if (jawatankuasa.length > 0) {
             finalHTML += `
                 <h3 class="section-sub-title" style="font-size: 1.2rem; margin-bottom: 15px; text-transform: uppercase;">JAWATANKUASA SIDANG</h3>
-                <div class="jawatankuasa-section">
-                    <div class="cadet-grid-flex">
-                        ${jawatankuasa.map(generateCardHTML).join('')}
-                    </div>
-                </div>
+                <div class="jawatankuasa-section"><div class="cadet-grid-flex">${jawatankuasa.map(generateCardHTML).join('')}</div></div>
                 <hr class="divider">
             `;
         }
 
-        // TAMPAL SEKSYEN KADET BIASA
         if (kadetBiasa.length > 0) {
-            finalHTML += `
-                <div class="biasa-section">
-                    <div class="cadet-grid-flex">
-                        ${kadetBiasa.map(generateCardHTML).join('')}
-                    </div>
-                </div>
-            `;
+            finalHTML += `<div class="biasa-section"><div class="cadet-grid-flex">${kadetBiasa.map(generateCardHTML).join('')}</div></div>`;
         } else if (jawatankuasa.length === 0 && pegawaiSidang.length === 0) {
             finalHTML = '<p style="text-align:center; width:100%; color:#888;">Tiada rekod dijumpai untuk sidang ini.</p>';
         }
@@ -1572,7 +1630,7 @@ if (visitorSpan) {
 // =======================================================
 // ===== 24. DUAL COUNTDOWN TIMER =====
 // =======================================================
-const dpaTargetDate = new Date('2026-07-26T23:59:59').getTime(); // Target DPA Tamat
+const dpaTargetDate = new Date('2026-07-24T23:59:59').getTime(); // Target DPA Tamat
 let modulLuarTargetDate = null;
 let countdownInterval;
 
@@ -1661,7 +1719,6 @@ countdownInterval = setInterval(updateCountdowns, 1000);
 // ===== 25. FUNGSI GALERI GAMBAR GOOGLE DRIVE =====
 // =======================================================
 
-
 async function loadGallery() {
     const grid = document.getElementById('gallery-grid');
     if (!grid) return;
@@ -1675,15 +1732,18 @@ async function loadGallery() {
             return;
         }
 
-        // Jana HTML untuk setiap gambar (Guna Thumbnail API supaya kebal sekatan browser)
-        grid.innerHTML = images.map(img => `
-            <div class="gallery-item">
-                <img src="https://drive.google.com/thumbnail?id=${img.id}&sz=w800" 
-                     alt="${img.name}" 
-                     loading="lazy"
-                     onclick="window.open('https://drive.google.com/file/d/${img.id}/view', '_blank')">
-            </div>
-        `).join('');
+        // TUKAR: hantar URL gambar resolusi tinggi (sz=w1600) & nama fail ke fungsi lightbox
+        grid.innerHTML = images.map(img => {
+            const highResUrl = `https://drive.google.com/thumbnail?id=${img.id}&sz=w1600`;
+            return `
+                <div class="gallery-item">
+                    <img src="https://drive.google.com/thumbnail?id=${img.id}&sz=w800" 
+                         alt="${img.name}" 
+                         loading="lazy"
+                         onclick="openLightbox('${highResUrl}', '${img.name.replace(/'/g, "\\'")}')">
+                </div>
+            `;
+        }).join('');
 
     } catch (error) {
         console.error("Ralat Galeri:", error);
@@ -1691,5 +1751,24 @@ async function loadGallery() {
     }
 }
 
-// Tambah loadGallery() ke dalam DOMContentLoaded initialization anda
-// (Cari bahagian document.addEventListener('DOMContentLoaded', ...))
+// ----- FUNGSI KAWALAN POP-UP LIGHTBOX (BARU) -----
+function openLightbox(src, title) {
+    const modal = document.getElementById("gallery-modal");
+    const lightboxImg = document.getElementById("lightbox-img");
+    const caption = document.getElementById("lightbox-caption");
+
+    if (modal && lightboxImg) {
+        lightboxImg.src = src;
+        if (caption) caption.innerText = title || "Gambar Aktiviti";
+        modal.classList.add("is-active");
+        document.body.style.overflow = "hidden"; // Elak background berscroll bila modal buka
+    }
+}
+
+function closeLightbox() {
+    const modal = document.getElementById("gallery-modal");
+    if (modal) {
+        modal.classList.remove("is-active");
+        document.body.style.overflow = "auto"; // Kembalikan scroll asal
+    }
+}
