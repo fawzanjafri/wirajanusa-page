@@ -872,8 +872,8 @@ async function loadCadetProfiles() {
 
                 if (sidang === currentSidang) {
                     // Logik penentuan status kadet aktif / dismissed
-                    const hasNewPhoto = ((currentSidang === "MEGANTARA" || currentSidang === "NAGASASRA") && photoUrlBaru && photoUrlBaru !== "-");
-                    const isDismissed = ((currentSidang === "MEGANTARA" || currentSidang === "NAGASASRA") && !hasNewPhoto);
+                    const hasNewPhoto = ((currentSidang === "MEGANTARA" || currentSidang === "ADIKARA" || currentSidang === "DIRGANTARA" || currentSidang === "NAGASASRA") && photoUrlBaru && photoUrlBaru !== "-");
+                    const isDismissed = ((currentSidang === "MEGANTARA" || currentSidang === "ADIKARA" || currentSidang === "DIRGANTARA" || currentSidang === "NAGASASRA") && !hasNewPhoto);
 
                     // Sediakan link asal mengikut status gambar baru
                     let frontRaw = hasNewPhoto ? photoUrlBaru : photoUrl;
@@ -1448,8 +1448,19 @@ async function loadCartaOrganisasi() {
             const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
             if (cols.length >= 6) {
                 const matriks = cols[1] ? cols[1].replace(/^"|"$/g, '').trim() : '';
-                let photoUrl = cols[5] ? cols[5].replace(/^"|"$/g, '').trim() : '';
                 
+                let photoUrlLama = cols[5] ? cols[5].replace(/^"|"$/g, '').trim() : '';
+                let photoUrlBaru = cols.length > 6 ? cols[6].replace(/^"|"$/g, '').trim() : '';
+                
+                // Logik pintar: Jika ada gambar baru, guna gambar baru. Jika tak, guna gambar lama.
+                let photoUrl = (photoUrlBaru && photoUrlBaru !== "-") ? photoUrlBaru : photoUrlLama;
+
+                // --- KOD TAMBAHAN: Potong domain web untuk kegunaan localhost ---
+                if (photoUrl && photoUrl.includes("wirajanusa-page.pages.dev/")) {
+                    photoUrl = photoUrl.split("wirajanusa-page.pages.dev/")[1];
+                }
+                // -------------------------------------------------------------
+
                 // Baiki link google drive
                 if (photoUrl && photoUrl.includes("drive.google.com")) {
                     let fileId = "";
@@ -1634,9 +1645,9 @@ const dpaTargetDate = new Date('2026-07-24T23:59:59').getTime(); // Target DPA T
 let modulLuarTargetDate = null;
 let countdownInterval;
 
+// KOD BARU
 function initModulLuarCountdown() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date().getTime(); // Guna ketepatan masa sekarang
 
     const sortedDates = Object.keys(activities).sort((a, b) => {
         return new Date(a) - new Date(b);
@@ -1651,8 +1662,7 @@ function initModulLuarCountdown() {
         const actDate = new Date(dateKey);
         actDate.setHours(0, 0, 0, 0);
 
-        if (actDate.getTime() >= today.getTime()) {
-            // LOGIK BARU: Tapis HANYA jika lajur Peringkat mengandungi "Modul Luar"
+        if (actDate.getTime() > now) {
             const modulsOnDate = activities[dateKey].filter(act => {
                 return act.level && act.level.toLowerCase().includes("modul luar");
             });
